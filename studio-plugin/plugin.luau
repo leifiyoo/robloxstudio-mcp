@@ -2979,8 +2979,8 @@ handlers.getSelection = function(requestData)
 		table.insert(selectedObjects, {
 			name = instance.Name,
 			className = instance.ClassName,
-			path = instance:GetFullName(),
-			parent = instance.Parent and instance.Parent:GetFullName() or nil
+			path = getInstancePath(instance),
+			parent = instance.Parent and getInstancePath(instance.Parent) or nil
 		})
 	end
 	
