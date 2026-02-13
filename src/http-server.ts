@@ -10,6 +10,8 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
   let lastMCPActivity = 0;
   let mcpServerStartTime = 0;
   let lastPluginActivity = 0;
+  let playtestStopRequested = false;
+  let serverPort = 0;
 
 
   const setMCPServerActive = (active: boolean) => {
@@ -132,6 +134,10 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
     res.json({ success: true });
   });
 
+
+  app.get('/playtest-stop-signal', (_req, res) => {
+    res.json({ shouldStop: playtestStopRequested });
+  });
 
   app.use('/mcp/*', (req, res, next) => {
     trackMCPActivity();
@@ -486,7 +492,8 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
 
   app.post('/mcp/start_playtest', async (req, res) => {
     try {
-      const result = await tools.startPlaytest(req.body.mode);
+      playtestStopRequested = false;
+      const result = await tools.startPlaytest(req.body.mode, serverPort);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
@@ -495,6 +502,7 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
 
   app.post('/mcp/stop_playtest', async (req, res) => {
     try {
+      playtestStopRequested = true;
       const result = await tools.stopPlaytest();
       res.json(result);
     } catch (error) {
@@ -516,6 +524,7 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
   (app as any).setMCPServerActive = setMCPServerActive;
   (app as any).isMCPServerActive = isMCPServerActive;
   (app as any).trackMCPActivity = trackMCPActivity;
+  (app as any).setServerPort = (port: number) => { serverPort = port; };
 
   return app;
 }

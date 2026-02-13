@@ -1,6 +1,9 @@
 import { LogService } from "@rbxts/services";
 
 const StudioTestService = game.GetService("StudioTestService");
+const ServerScriptService = game.GetService("ServerScriptService");
+
+const STOP_LISTENER_NAME = "__MCP_StopListener";
 
 interface OutputEntry {
 	message: string;
@@ -13,9 +16,41 @@ let outputBuffer: OutputEntry[] = [];
 let logConnection: RBXScriptConnection | undefined;
 let testResult: unknown;
 let testError: string | undefined;
+let stopListenerScript: Script | undefined;
+
+function buildStopListenerSource(port: number): string {
+	return `local HttpService = game:GetService("HttpService")
+local StudioTestService = game:GetService("StudioTestService")
+while true do
+	local ok, res = pcall(function()
+		return HttpService:RequestAsync({
+			Url = "http://localhost:${port}/playtest-stop-signal",
+			Method = "GET",
+		})
+	end)
+	if ok and res.Success then
+		local dok, data = pcall(function()
+			return HttpService:JSONDecode(res.Body)
+		end)
+		if dok and data.shouldStop then
+			pcall(function() StudioTestService:EndTest("stopped_by_mcp") end)
+			return
+		end
+	end
+	task.wait(1)
+end`;
+}
+
+function cleanupStopListener() {
+	if (stopListenerScript) {
+		pcall(() => stopListenerScript!.Destroy());
+		stopListenerScript = undefined;
+	}
+}
 
 function startPlaytest(requestData: Record<string, unknown>) {
 	const mode = requestData.mode as string | undefined;
+	const serverPort = requestData.serverPort as number | undefined;
 
 	if (mode !== "play" && mode !== "run") {
 		return { error: 'mode must be "play" or "run"' };
@@ -29,6 +64,16 @@ function startPlaytest(requestData: Record<string, unknown>) {
 	outputBuffer = [];
 	testResult = undefined;
 	testError = undefined;
+
+	cleanupStopListener();
+
+	if (serverPort !== undefined && serverPort > 0) {
+		const listener = new Instance("Script");
+		listener.Name = STOP_LISTENER_NAME;
+		listener.Source = buildStopListenerSource(serverPort);
+		listener.Parent = ServerScriptService;
+		stopListenerScript = listener;
+	}
 
 	logConnection = LogService.MessageOut.Connect((message, messageType) => {
 		outputBuffer.push({
@@ -57,6 +102,8 @@ function startPlaytest(requestData: Record<string, unknown>) {
 			logConnection = undefined;
 		}
 		testRunning = false;
+
+		cleanupStopListener();
 	});
 
 	return { success: true, message: `Playtest started in ${mode} mode` };
@@ -79,7 +126,7 @@ function stopPlaytest(_requestData: Record<string, unknown>) {
 		success: true,
 		output,
 		outputCount: output.size(),
-		message: "Output captured. Press Stop in Studio to end the play session.",
+		message: "Stop signal sent. The play session will end shortly.",
 	};
 }
 

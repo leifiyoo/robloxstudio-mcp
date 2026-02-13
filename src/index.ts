@@ -884,7 +884,7 @@ class RobloxStudioMCPServer {
           },
           {
             name: 'stop_playtest',
-            description: 'Stop capturing play test output and return all captured messages. The Studio play session must be stopped manually (click Stop in Studio).',
+            description: 'Stop the play test session in Roblox Studio and return all captured output messages.',
             inputSchema: {
               type: 'object',
               properties: {}
@@ -1088,6 +1088,8 @@ class RobloxStudioMCPServer {
         console.error(`Legacy port ${LEGACY_PORT} in use, skipping backward-compat listener`);
       }
     }
+
+    (httpServer as any).setServerPort(boundPort);
 
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
