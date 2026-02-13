@@ -440,7 +440,7 @@ local function checkForUpdates()
 				local latestVersion = data.version
 				if Utils.compareVersions(State.CURRENT_VERSION, latestVersion) < 0 then
 					local ui = UI.getElements()
-					ui.updateBannerText.Text = `Update available: v{latestVersion}`
+					ui.updateBannerText.Text = `v{latestVersion} available - github.com/boshyxd/robloxstudio-mcp`
 					ui.updateBanner.Visible = true
 					ui.contentFrame.Position = UDim2.new(0, 8, 0, 92)
 					ui.contentFrame.Size = UDim2.new(1, -16, 1, -100)
@@ -3173,7 +3173,7 @@ return {
         <Properties>
           <string name="Name">State</string>
           <string name="Source"><![CDATA[-- Compiled with roblox-ts v3.0.0
-local CURRENT_VERSION = "2.2.8"
+local CURRENT_VERSION = "2.3.0"
 local MAX_CONNECTIONS = 5
 local BASE_PORT = 58741
 local activeTabIndex = 0
@@ -3606,28 +3606,15 @@ local function init(pluginRef)
 	updateBannerCorner.CornerRadius = UDim.new(0, 3)
 	updateBannerCorner.Parent = updateBanner
 	local updateBannerText = Instance.new("TextLabel")
-	updateBannerText.Size = UDim2.new(1, -54, 1, 0)
+	updateBannerText.Size = UDim2.new(1, -16, 1, 0)
 	updateBannerText.Position = UDim2.new(0, 8, 0, 0)
 	updateBannerText.BackgroundTransparency = 1
-	updateBannerText.Text = "Update available: v0.0.0"
+	updateBannerText.Text = ""
 	updateBannerText.TextColor3 = C.yellow
 	updateBannerText.TextSize = 9
 	updateBannerText.Font = Enum.Font.GothamMedium
 	updateBannerText.TextXAlignment = Enum.TextXAlignment.Left
 	updateBannerText.Parent = updateBanner
-	local updateLink = Instance.new("TextButton")
-	updateLink.Size = UDim2.new(0, 40, 0, 16)
-	updateLink.Position = UDim2.new(1, -46, 0, 4)
-	updateLink.BackgroundColor3 = C.yellow
-	updateLink.BackgroundTransparency = 0.85
-	updateLink.Text = "Get"
-	updateLink.TextColor3 = C.yellow
-	updateLink.TextSize = 9
-	updateLink.Font = Enum.Font.GothamBold
-	updateLink.Parent = updateBanner
-	local updateLinkCorner = Instance.new("UICorner")
-	updateLinkCorner.CornerRadius = UDim.new(0, 3)
-	updateLinkCorner.Parent = updateLink
 	local contentY = 66
 	local contentFrame = Instance.new("ScrollingFrame")
 	contentFrame.Size = UDim2.new(1, -16, 1, -(contentY + 8))
@@ -3809,22 +3796,6 @@ local function init(pluginRef)
 		else
 			setButtonConnect(connectButton, connectStroke)
 		end
-	end)
-	updateLink.Activated:Connect(function()
-		local url = "https://github.com/boshyxd/robloxstudio-mcp/releases"
-		local env = getfenv(0)
-		local _value = env.setclipboard
-		if _value ~= 0 and _value == _value and _value ~= "" and _value then
-			pcall(function()
-				env.setclipboard(url)
-			end)
-		end
-		updateBannerText.Text = "Link copied!"
-		task.delay(3, function()
-			if updateBanner.Visible then
-				updateBannerText.Text = "Update available - check GitHub"
-			end
-		end)
 	end)
 	elements = {
 		screenGui = screenGui,
