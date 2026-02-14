@@ -123,6 +123,6 @@ gemini mcp add robloxstudio-inspector npx --trust -- -y robloxstudio-mcp-inspect
 
 ---
 
-**v1.9.0** - 37+ tools, asset property fetching, full HTTP API, improved stability
+<!-- VERSION_LINE -->**v2.3.0** - 38 tools, inspector edition, monorepo architecture
 
 [Report Issues](https://github.com/boshyxd/robloxstudio-mcp/issues) | [DevForum](https://devforum.roblox.com/t/v180-roblox-studio-mcp-speed-up-your-workflow-by-letting-ai-read-paths-and-properties/3707071) | MIT Licensed
