@@ -64,8 +64,65 @@ Plugin shows "Connected" when ready.
 
 Ask things like: *"What's the structure of this game?"*, *"Find scripts with deprecated APIs"*, *"Create 50 test NPCs in a grid"*, *"Optimize this movement code"*
 
+<details>
+<summary><strong>Inspector Edition (Read-Only)</strong></summary>
+
+### robloxstudio-mcp-inspector
+
+[![NPM Version](https://img.shields.io/npm/v/robloxstudio-mcp-inspector)](https://www.npmjs.com/package/robloxstudio-mcp-inspector)
+
+A lighter, **read-only** version that only exposes inspection tools. No writes, no script edits, no object creation/deletion. Ideal for safely browsing game structure, reviewing scripts, and debugging without risk of accidental changes.
+
+**20 read-only tools:** `get_file_tree`, `search_files`, `get_place_info`, `get_services`, `search_objects`, `get_instance_properties`, `get_instance_children`, `search_by_property`, `get_class_info`, `get_project_structure`, `mass_get_property`, `get_script_source`, `get_attribute`, `get_attributes`, `get_tags`, `get_tagged`, `get_selection`, `start_playtest`, `stop_playtest`, `get_playtest_output`
+
+**Setup** - same plugin, just swap the package name:
+
+**Claude:**
+```bash
+claude mcp add robloxstudio-inspector -- npx -y robloxstudio-mcp-inspector@latest
+```
+
+**Codex:**
+```bash
+codex mcp add robloxstudio-inspector -- npx -y robloxstudio-mcp-inspector@latest
+```
+
+**Gemini:**
+```bash
+gemini mcp add robloxstudio-inspector npx --trust -- -y robloxstudio-mcp-inspector@latest
+```
+
+<details>
+<summary>Other MCP clients (Claude Desktop, Cursor, etc.)</summary>
+
+```json
+{
+  "mcpServers": {
+    "robloxstudio-mcp-inspector": {
+      "command": "npx",
+      "args": ["-y", "robloxstudio-mcp-inspector@latest"]
+    }
+  }
+}
+```
+
+**Windows users:** If you encounter issues, use `cmd`:
+```json
+{
+  "mcpServers": {
+    "robloxstudio-mcp-inspector": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "robloxstudio-mcp-inspector@latest"]
+    }
+  }
+}
+```
+</details>
+
+</details>
+
 ---
 
-**v1.9.0** — 37+ tools, asset property fetching, full HTTP API, improved stability
+**v1.9.0** - 37+ tools, asset property fetching, full HTTP API, improved stability
 
 [Report Issues](https://github.com/boshyxd/robloxstudio-mcp/issues) | [DevForum](https://devforum.roblox.com/t/v180-roblox-studio-mcp-speed-up-your-workflow-by-letting-ai-read-paths-and-properties/3707071) | MIT Licensed

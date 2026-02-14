@@ -15,7 +15,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -27,7 +27,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -40,7 +40,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -52,7 +52,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -68,7 +68,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -84,7 +84,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -99,7 +99,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -117,7 +117,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -132,7 +132,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -149,7 +149,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -170,7 +170,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -189,7 +189,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -207,35 +207,16 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
   }
 
 
-  async createObject(className: string, parent: string, name?: string) {
+  async createObject(className: string, parent: string, name?: string, properties?: Record<string, any>) {
     if (!className || !parent) {
       throw new Error('Class name and parent are required for create_object');
-    }
-    const response = await this.client.request('/api/create-object', {
-      className,
-      parent,
-      name
-    });
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(response, null, 2)
-        }
-      ]
-    };
-  }
-
-  async createObjectWithProperties(className: string, parent: string, name?: string, properties?: Record<string, any>) {
-    if (!className || !parent) {
-      throw new Error('Class name and parent are required for create_object_with_properties');
     }
     const response = await this.client.request('/api/create-object', {
       className,
@@ -247,37 +228,24 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
   }
 
-  async massCreateObjects(objects: Array<{className: string, parent: string, name?: string}>) {
+  async massCreateObjects(objects: Array<{className: string, parent: string, name?: string, properties?: Record<string, any>}>) {
     if (!objects || objects.length === 0) {
       throw new Error('Objects array is required for mass_create_objects');
     }
-    const response = await this.client.request('/api/mass-create-objects', { objects });
+    const hasProperties = objects.some(o => o.properties && Object.keys(o.properties).length > 0);
+    const endpoint = hasProperties ? '/api/mass-create-objects-with-properties' : '/api/mass-create-objects';
+    const response = await this.client.request(endpoint, { objects });
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
-        }
-      ]
-    };
-  }
-
-  async massCreateObjectsWithProperties(objects: Array<{className: string, parent: string, name?: string, properties?: Record<string, any>}>) {
-    if (!objects || objects.length === 0) {
-      throw new Error('Objects array is required for mass_create_objects_with_properties');
-    }
-    const response = await this.client.request('/api/mass-create-objects-with-properties', { objects });
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -292,7 +260,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -323,7 +291,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -351,7 +319,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -377,7 +345,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -405,7 +373,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -421,7 +389,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -436,7 +404,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -452,7 +420,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -467,7 +435,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -482,7 +450,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -498,7 +466,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -513,7 +481,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -528,7 +496,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -543,7 +511,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -559,7 +527,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -574,7 +542,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -589,7 +557,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -604,7 +572,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -616,7 +584,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -631,7 +599,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -646,7 +614,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -658,7 +626,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
@@ -670,7 +638,7 @@ export class RobloxStudioTools {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(response, null, 2)
+          text: JSON.stringify(response)
         }
       ]
     };
