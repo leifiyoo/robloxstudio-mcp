@@ -82,7 +82,7 @@ export class RobloxStudioMCPServer {
             return await this.tools.searchObjects((args as any)?.query as string, (args as any)?.searchType || 'name', (args as any)?.propertyName);
 
           case 'get_instance_properties':
-            return await this.tools.getInstanceProperties((args as any)?.instancePath as string);
+            return await this.tools.getInstanceProperties((args as any)?.instancePath as string, (args as any)?.excludeSource);
           case 'get_instance_children':
             return await this.tools.getInstanceChildren((args as any)?.instancePath as string);
           case 'search_by_property':
@@ -120,6 +120,18 @@ export class RobloxStudioMCPServer {
 
           case 'set_relative_property':
             return await this.tools.setRelativeProperty((args as any)?.paths as string[], (args as any)?.propertyName as string, (args as any)?.operation, (args as any)?.value, (args as any)?.component);
+
+          case 'grep_scripts':
+            return await this.tools.grepScripts((args as any)?.pattern as string, {
+              caseSensitive: (args as any)?.caseSensitive,
+              usePattern: (args as any)?.usePattern,
+              contextLines: (args as any)?.contextLines,
+              maxResults: (args as any)?.maxResults,
+              maxResultsPerScript: (args as any)?.maxResultsPerScript,
+              filesOnly: (args as any)?.filesOnly,
+              path: (args as any)?.path,
+              classFilter: (args as any)?.classFilter,
+            });
 
           case 'get_script_source':
             return await this.tools.getScriptSource((args as any)?.instancePath as string, (args as any)?.startLine, (args as any)?.endLine);

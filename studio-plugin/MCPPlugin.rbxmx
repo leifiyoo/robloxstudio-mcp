@@ -63,6 +63,7 @@ local routeMap = {
 	["/api/search-by-property"] = QueryHandlers.searchByProperty,
 	["/api/class-info"] = QueryHandlers.getClassInfo,
 	["/api/project-structure"] = QueryHandlers.getProjectStructure,
+	["/api/grep-scripts"] = QueryHandlers.grepScripts,
 	["/api/set-property"] = PropertyHandlers.setProperty,
 	["/api/mass-set-property"] = PropertyHandlers.massSetProperty,
 	["/api/mass-get-property"] = PropertyHandlers.massGetProperty,
@@ -2072,6 +2073,11 @@ local function searchObjects(requestData)
 end
 local function getInstanceProperties(requestData)
 	local instancePath = requestData.instancePath
+	local _condition = (requestData.excludeSource)
+	if _condition == nil then
+		_condition = false
+	end
+	local excludeSource = _condition
 	if not (instancePath ~= "" and instancePath) then
 		return {
 			error = "Instance path is required",
@@ -2127,7 +2133,13 @@ local function getInstanceProperties(requestData)
 			end
 		end
 		if instance:IsA("LuaSourceContainer") then
-			properties.Source = readScriptSource(instance)
+			if not excludeSource then
+				properties.Source = readScriptSource(instance)
+			else
+				local src = readScriptSource(instance)
+				properties.SourceLength = #src
+				properties.LineCount = #(Utils.splitLines(src))
+			end
 			if instance:IsA("BaseScript") then
 				properties.Enabled = tostring(instance.Enabled)
 			end
@@ -2494,6 +2506,189 @@ local function getProjectStructure(requestData)
 	result.timestamp = tick()
 	return result
 end
+local function grepScripts(requestData)
+	local pattern = requestData.pattern
+	if not (pattern ~= "" and pattern) then
+		return {
+			error = "pattern is required",
+		}
+	end
+	local _condition = (requestData.caseSensitive)
+	if _condition == nil then
+		_condition = false
+	end
+	local caseSensitive = _condition
+	local _condition_1 = (requestData.contextLines)
+	if _condition_1 == nil then
+		_condition_1 = 0
+	end
+	local contextLines = _condition_1
+	local _condition_2 = (requestData.maxResults)
+	if _condition_2 == nil then
+		_condition_2 = 100
+	end
+	local maxResults = _condition_2
+	local _condition_3 = (requestData.maxResultsPerScript)
+	if _condition_3 == nil then
+		_condition_3 = 0
+	end
+	local maxResultsPerScript = _condition_3
+	local _condition_4 = (requestData.usePattern)
+	if _condition_4 == nil then
+		_condition_4 = false
+	end
+	local usePattern = _condition_4
+	local _condition_5 = (requestData.filesOnly)
+	if _condition_5 == nil then
+		_condition_5 = false
+	end
+	local filesOnly = _condition_5
+	local _condition_6 = (requestData.path)
+	if _condition_6 == nil then
+		_condition_6 = ""
+	end
+	local searchPath = _condition_6
+	local classFilter = requestData.classFilter
+	local startInstance = if searchPath ~= "" then getInstanceByPath(searchPath) else game
+	if not startInstance then
+		return {
+			error = `Path not found: {searchPath}`,
+		}
+	end
+	-- Prepare pattern for matching
+	local searchPattern = if caseSensitive then pattern else string.lower(pattern)
+	local results = {}
+	local totalMatches = 0
+	local scriptsSearched = 0
+	local hitLimit = false
+	local function searchInstance(instance)
+		if hitLimit then
+			return nil
+		end
+		if instance:IsA("LuaSourceContainer") then
+			-- Apply class filter
+			if classFilter ~= "" and classFilter then
+				local _exp = string.lower(instance.ClassName)
+				local _arg0 = string.lower(classFilter)
+				local _value = (string.find(_exp, _arg0))
+				if not (_value ~= 0 and _value == _value and _value) then
+					return nil
+				end
+			end
+			scriptsSearched += 1
+			local source = readScriptSource(instance)
+			local lines = Utils.splitLines(source)
+			local scriptMatches = {}
+			local scriptMatchCount = 0
+			for i = 0, #lines - 1 do
+				if hitLimit then
+					break
+				end
+				if maxResultsPerScript > 0 and scriptMatchCount >= maxResultsPerScript then
+					break
+				end
+				local line = lines[i + 1]
+				local searchLine = if caseSensitive then line else string.lower(line)
+				local matchStart
+				local matchEnd
+				if usePattern then
+					matchStart, matchEnd = string.find(searchLine, searchPattern)
+				else
+					matchStart, matchEnd = string.find(searchLine, searchPattern, 1, true)
+				end
+				if matchStart ~= nil then
+					scriptMatchCount += 1
+					totalMatches += 1
+					if totalMatches > maxResults then
+						hitLimit = true
+						break
+					end
+					if not filesOnly then
+						-- Gather context lines
+						local before = {}
+						local after = {}
+						if contextLines > 0 then
+							local beforeStart = math.max(0, i - contextLines)
+							do
+								local j = beforeStart
+								local _shouldIncrement = false
+								while true do
+									if _shouldIncrement then
+										j += 1
+									else
+										_shouldIncrement = true
+									end
+									if not (j < i) then
+										break
+									end
+									local _arg0 = lines[j + 1]
+									table.insert(before, _arg0)
+								end
+							end
+							local afterEnd = math.min(#lines - 1, i + contextLines)
+							do
+								local j = i + 1
+								local _shouldIncrement = false
+								while true do
+									if _shouldIncrement then
+										j += 1
+									else
+										_shouldIncrement = true
+									end
+									if not (j <= afterEnd) then
+										break
+									end
+									local _arg0 = lines[j + 1]
+									table.insert(after, _arg0)
+								end
+							end
+						end
+						local _arg0 = {
+							line = i + 1,
+							column = matchStart,
+							text = line,
+							before = before,
+							after = after,
+						}
+						table.insert(scriptMatches, _arg0)
+					end
+				end
+			end
+			if scriptMatchCount > 0 then
+				local _arg0 = {
+					instancePath = getInstancePath(instance),
+					name = instance.Name,
+					className = instance.ClassName,
+					matches = scriptMatches,
+				}
+				table.insert(results, _arg0)
+			end
+		end
+		for _, child in instance:GetChildren() do
+			if hitLimit then
+				return nil
+			end
+			searchInstance(child)
+		end
+	end
+	searchInstance(startInstance)
+	return {
+		results = results,
+		pattern = pattern,
+		totalMatches = if hitLimit then `>{maxResults}` else totalMatches,
+		scriptsSearched = scriptsSearched,
+		scriptsMatched = #results,
+		truncated = hitLimit,
+		options = {
+			caseSensitive = caseSensitive,
+			contextLines = contextLines,
+			usePattern = usePattern,
+			filesOnly = filesOnly,
+			maxResults = maxResults,
+			maxResultsPerScript = maxResultsPerScript,
+		},
+	}
+end
 return {
 	getFileTree = getFileTree,
 	searchFiles = searchFiles,
@@ -2505,6 +2700,7 @@ return {
 	searchByProperty = searchByProperty,
 	getClassInfo = getClassInfo,
 	getProjectStructure = getProjectStructure,
+	grepScripts = grepScripts,
 }
 ]]></string>
           </Properties>

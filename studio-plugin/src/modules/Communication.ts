@@ -24,6 +24,7 @@ const routeMap: Record<string, Handler> = {
 	"/api/search-by-property": QueryHandlers.searchByProperty,
 	"/api/class-info": QueryHandlers.getClassInfo,
 	"/api/project-structure": QueryHandlers.getProjectStructure,
+	"/api/grep-scripts": QueryHandlers.grepScripts,
 
 	"/api/set-property": PropertyHandlers.setProperty,
 	"/api/mass-set-property": PropertyHandlers.massSetProperty,

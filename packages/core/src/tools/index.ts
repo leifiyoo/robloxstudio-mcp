@@ -75,11 +75,11 @@ export class RobloxStudioTools {
   }
 
 
-  async getInstanceProperties(instancePath: string) {
+  async getInstanceProperties(instancePath: string, excludeSource?: boolean) {
     if (!instancePath) {
       throw new Error('Instance path is required for get_instance_properties');
     }
-    const response = await this.client.request('/api/instance-properties', { instancePath });
+    const response = await this.client.request('/api/instance-properties', { instancePath, excludeSource });
     return {
       content: [
         {
@@ -456,6 +456,36 @@ export class RobloxStudioTools {
     };
   }
 
+
+  async grepScripts(
+    pattern: string,
+    options?: {
+      caseSensitive?: boolean;
+      usePattern?: boolean;
+      contextLines?: number;
+      maxResults?: number;
+      maxResultsPerScript?: number;
+      filesOnly?: boolean;
+      path?: string;
+      classFilter?: string;
+    }
+  ) {
+    if (!pattern) {
+      throw new Error('Pattern is required for grep_scripts');
+    }
+    const response = await this.client.request('/api/grep-scripts', {
+      pattern,
+      ...options
+    });
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
 
   async getAttribute(instancePath: string, attributeName: string) {
     if (!instancePath || !attributeName) {

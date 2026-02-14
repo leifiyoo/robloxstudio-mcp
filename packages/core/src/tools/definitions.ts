@@ -107,6 +107,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         instancePath: {
           type: 'string',
           description: 'Instance path (dot notation)'
+        },
+        excludeSource: {
+          type: 'boolean',
+          description: 'For scripts, return SourceLength/LineCount instead of full source (default: false)',
+          default: false
         }
       },
       required: ['instancePath']
@@ -822,6 +827,61 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         }
       },
       required: ['code']
+    }
+  },
+
+  // === Script Search ===
+  {
+    name: 'grep_scripts',
+    category: 'read',
+    description: 'Ripgrep-inspired search across all script sources. Supports literal and Lua pattern matching, context lines, early termination, and results grouped by script with line/column numbers.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pattern: {
+          type: 'string',
+          description: 'Search pattern (literal string or Lua pattern)'
+        },
+        caseSensitive: {
+          type: 'boolean',
+          description: 'Case-sensitive search (default: false)',
+          default: false
+        },
+        usePattern: {
+          type: 'boolean',
+          description: 'Use Lua pattern matching instead of literal (default: false)',
+          default: false
+        },
+        contextLines: {
+          type: 'number',
+          description: 'Number of context lines before/after each match (like rg -C)',
+          default: 0
+        },
+        maxResults: {
+          type: 'number',
+          description: 'Max total matches before stopping (default: 100)',
+          default: 100
+        },
+        maxResultsPerScript: {
+          type: 'number',
+          description: 'Max matches per script (like rg -m)'
+        },
+        filesOnly: {
+          type: 'boolean',
+          description: 'Only return matching script paths, not line details (like rg -l)',
+          default: false
+        },
+        path: {
+          type: 'string',
+          description: 'Subtree to search (e.g. "game.ServerScriptService")'
+        },
+        classFilter: {
+          type: 'string',
+          enum: ['Script', 'LocalScript', 'ModuleScript'],
+          description: 'Only search scripts of this class type'
+        }
+      },
+      required: ['pattern']
     }
   },
 

@@ -73,7 +73,7 @@ Ask things like: *"What's the structure of this game?"*, *"Find scripts with dep
 
 A lighter, **read-only** version that only exposes inspection tools. No writes, no script edits, no object creation/deletion. Ideal for safely browsing game structure, reviewing scripts, and debugging without risk of accidental changes.
 
-**20 read-only tools:** `get_file_tree`, `search_files`, `get_place_info`, `get_services`, `search_objects`, `get_instance_properties`, `get_instance_children`, `search_by_property`, `get_class_info`, `get_project_structure`, `mass_get_property`, `get_script_source`, `get_attribute`, `get_attributes`, `get_tags`, `get_tagged`, `get_selection`, `start_playtest`, `stop_playtest`, `get_playtest_output`
+**21 read-only tools:** `get_file_tree`, `search_files`, `get_place_info`, `get_services`, `search_objects`, `get_instance_properties`, `get_instance_children`, `search_by_property`, `get_class_info`, `get_project_structure`, `mass_get_property`, `get_script_source`, `grep_scripts`, `get_attribute`, `get_attributes`, `get_tags`, `get_tagged`, `get_selection`, `start_playtest`, `stop_playtest`, `get_playtest_output`
 
 **Setup** - same plugin, just swap the package name:
 
@@ -123,6 +123,6 @@ gemini mcp add robloxstudio-inspector npx --trust -- -y robloxstudio-mcp-inspect
 
 ---
 
-<!-- VERSION_LINE -->**v2.3.0** - 38 tools, inspector edition, monorepo architecture
+<!-- VERSION_LINE -->**v2.3.0** - 39 tools, inspector edition, monorepo architecture
 
 [Report Issues](https://github.com/boshyxd/robloxstudio-mcp/issues) | [DevForum](https://devforum.roblox.com/t/v180-roblox-studio-mcp-speed-up-your-workflow-by-letting-ai-read-paths-and-properties/3707071) | MIT Licensed
