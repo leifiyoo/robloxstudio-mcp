@@ -56,6 +56,10 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   start_playtest: (tools, body) => tools.startPlaytest(body.mode),
   stop_playtest: (tools) => tools.stopPlaytest(),
   get_playtest_output: (tools) => tools.getPlaytestOutput(),
+  export_build: (tools, body) => tools.exportBuild(body.instancePath, body.outputId, body.style),
+  import_build: (tools, body) => tools.importBuild(body.buildData, body.targetPath, body.position),
+  list_library: (tools, body) => tools.listLibrary(body.style),
+  import_scene: (tools, body) => tools.importScene(body.sceneData, body.targetPath),
 };
 
 export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService, allowedTools?: Set<string>) {

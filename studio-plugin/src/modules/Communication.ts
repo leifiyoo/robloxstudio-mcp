@@ -8,6 +8,7 @@ import InstanceHandlers from "./handlers/InstanceHandlers";
 import ScriptHandlers from "./handlers/ScriptHandlers";
 import MetadataHandlers from "./handlers/MetadataHandlers";
 import TestHandlers from "./handlers/TestHandlers";
+import BuildHandlers from "./handlers/BuildHandlers";
 import { Connection, RequestPayload, PollResponse } from "../types";
 
 type Handler = (data: Record<string, unknown>) => unknown;
@@ -59,6 +60,10 @@ const routeMap: Record<string, Handler> = {
 	"/api/start-playtest": TestHandlers.startPlaytest,
 	"/api/stop-playtest": TestHandlers.stopPlaytest,
 	"/api/get-playtest-output": TestHandlers.getPlaytestOutput,
+
+	"/api/export-build": BuildHandlers.exportBuild,
+	"/api/import-build": BuildHandlers.importBuild,
+	"/api/import-scene": BuildHandlers.importScene,
 };
 
 function processRequest(request: RequestPayload): unknown {

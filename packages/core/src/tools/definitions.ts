@@ -920,6 +920,110 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {}
     }
   },
+
+  // === Build Library ===
+  {
+    name: 'export_build',
+    category: 'read',
+    description: 'Export a Model/Folder into a compact, token-efficient build JSON format. The output contains a palette (unique BrickColor+Material combos mapped to short keys) and compact part arrays with positions normalized relative to the bounding box center.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instancePath: {
+          type: 'string',
+          description: 'Path to the Model or Folder to export (dot notation)'
+        },
+        outputId: {
+          type: 'string',
+          description: 'Build ID for the output (e.g. "medieval/cottage_01"). Defaults to style/instance_name.'
+        },
+        style: {
+          type: 'string',
+          enum: ['medieval', 'modern', 'nature', 'scifi', 'misc'],
+          description: 'Style category for the build',
+          default: 'misc'
+        }
+      },
+      required: ['instancePath']
+    }
+  },
+  {
+    name: 'import_build',
+    category: 'write',
+    description: 'Import a build from compact JSON format into Roblox Studio. Creates a Model with all parts, applying palette colors/materials, shapes, and transparency.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        buildData: {
+          type: 'object',
+          description: 'The build data object (with id, style, bounds, palette, parts)'
+        },
+        targetPath: {
+          type: 'string',
+          description: 'Parent instance path where the model will be created'
+        },
+        position: {
+          type: 'array',
+          items: { type: 'number' },
+          minItems: 3,
+          maxItems: 3,
+          description: 'World position offset [X, Y, Z]'
+        }
+      },
+      required: ['buildData', 'targetPath']
+    }
+  },
+  {
+    name: 'list_library',
+    category: 'read',
+    description: 'List available builds in the local build library. Returns build IDs, styles, bounds, and part counts. Optionally filter by style.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        style: {
+          type: 'string',
+          enum: ['medieval', 'modern', 'nature', 'scifi', 'misc'],
+          description: 'Filter by style category'
+        }
+      }
+    }
+  },
+  {
+    name: 'import_scene',
+    category: 'write',
+    description: 'Import a full scene layout. Provide a scene with model references (resolved from library) and placement data. Each model is placed at the specified position/rotation. Can also include inline custom builds.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sceneData: {
+          type: 'object',
+          description: 'Scene layout object with: models (map of key to library build ID), place (array of [key, position, rotation?]), and optional custom (array of inline build objects with name, position, palette, parts)',
+          properties: {
+            models: {
+              type: 'object',
+              description: 'Map of short keys to library build IDs (e.g. {"A": "medieval/cottage_01"})'
+            },
+            place: {
+              type: 'array',
+              description: 'Array of placements: [modelKey, [x,y,z], [rotX?,rotY?,rotZ?]]',
+              items: { type: 'array' }
+            },
+            custom: {
+              type: 'array',
+              description: 'Array of inline custom builds with {n: name, o: [x,y,z], palette: {...}, parts: [...]}',
+              items: { type: 'object' }
+            }
+          }
+        },
+        targetPath: {
+          type: 'string',
+          description: 'Parent instance path for the scene (default: game.Workspace)',
+          default: 'game.Workspace'
+        }
+      },
+      required: ['sceneData']
+    }
+  },
 ];
 
 export const getReadOnlyTools = () => TOOL_DEFINITIONS.filter(t => t.category === 'read');

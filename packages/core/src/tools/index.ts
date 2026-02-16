@@ -1,5 +1,7 @@
 import { StudioHttpClient } from './studio-client.js';
 import { BridgeService } from '../bridge-service.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class RobloxStudioTools {
   private client: StudioHttpClient;
@@ -664,6 +666,162 @@ export class RobloxStudioTools {
 
   async getPlaytestOutput() {
     const response = await this.client.request('/api/get-playtest-output', {});
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
+
+
+  private static readonly LIBRARY_PATH = path.join(
+    process.env.USERPROFILE || process.env.HOME || '',
+    'Documents',
+    'roblox-build-library'
+  );
+
+  async exportBuild(instancePath: string, outputId?: string, style: string = 'misc') {
+    if (!instancePath) {
+      throw new Error('Instance path is required for export_build');
+    }
+    const response = await this.client.request('/api/export-build', {
+      instancePath,
+      outputId,
+      style
+    });
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
+
+  async importBuild(buildData: Record<string, any>, targetPath: string, position?: [number, number, number]) {
+    if (!buildData || !targetPath) {
+      throw new Error('buildData and targetPath are required for import_build');
+    }
+    const response = await this.client.request('/api/import-build', {
+      buildData,
+      targetPath,
+      position
+    });
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
+
+  async listLibrary(style?: string) {
+    const libraryPath = RobloxStudioTools.LIBRARY_PATH;
+    const styles = style ? [style] : ['medieval', 'modern', 'nature', 'scifi', 'misc'];
+    const builds: Array<{ id: string; style: string; bounds: number[]; partCount: number }> = [];
+
+    for (const s of styles) {
+      const dirPath = path.join(libraryPath, s);
+      if (!fs.existsSync(dirPath)) continue;
+
+      const files = fs.readdirSync(dirPath).filter(f => f.endsWith('.json'));
+      for (const file of files) {
+        try {
+          const content = fs.readFileSync(path.join(dirPath, file), 'utf-8');
+          const data = JSON.parse(content);
+          builds.push({
+            id: data.id || `${s}/${file.replace('.json', '')}`,
+            style: data.style || s,
+            bounds: data.bounds || [0, 0, 0],
+            partCount: Array.isArray(data.parts) ? data.parts.length : 0
+          });
+        } catch {
+          // Skip invalid JSON files
+        }
+      }
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ builds, total: builds.length })
+        }
+      ]
+    };
+  }
+
+  async importScene(
+    sceneData: {
+      models?: Record<string, string>;
+      place?: Array<[string, number[], number[]?]>;
+      custom?: Array<{ n: string; o: number[]; palette: Record<string, [string, string]>; parts: any[][] }>;
+    },
+    targetPath: string = 'game.Workspace'
+  ) {
+    if (!sceneData) {
+      throw new Error('sceneData is required for import_scene');
+    }
+
+    const libraryPath = RobloxStudioTools.LIBRARY_PATH;
+    const expandedBuilds: Array<{ buildData: Record<string, any>; position: number[]; rotation: number[]; name: string }> = [];
+
+    // Resolve model references from library
+    const modelMap = sceneData.models || {};
+    const placements = sceneData.place || [];
+
+    for (const placement of placements) {
+      const [modelKey, position, rotation] = placement;
+      const buildId = modelMap[modelKey];
+      if (!buildId) continue;
+
+      // Load build data from library
+      const filePath = path.join(libraryPath, `${buildId}.json`);
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Build not found in library: ${buildId}`);
+      }
+
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const buildData = JSON.parse(content);
+      const buildName = buildId.split('/').pop() || buildId;
+
+      expandedBuilds.push({
+        buildData,
+        position: position || [0, 0, 0],
+        rotation: rotation || [0, 0, 0],
+        name: buildName
+      });
+    }
+
+    // Add custom inline builds
+    const customs = sceneData.custom || [];
+    for (const custom of customs) {
+      expandedBuilds.push({
+        buildData: {
+          palette: custom.palette,
+          parts: custom.parts
+        },
+        position: custom.o || [0, 0, 0],
+        rotation: [0, 0, 0],
+        name: custom.n || 'Custom'
+      });
+    }
+
+    if (expandedBuilds.length === 0) {
+      throw new Error('No builds to import — check model references and library');
+    }
+
+    // Send expanded builds to plugin
+    const response = await this.client.request('/api/import-scene', {
+      expandedBuilds,
+      targetPath
+    });
     return {
       content: [
         {
