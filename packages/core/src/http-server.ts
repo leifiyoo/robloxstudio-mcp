@@ -57,6 +57,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   stop_playtest: (tools) => tools.stopPlaytest(),
   get_playtest_output: (tools) => tools.getPlaytestOutput(),
   export_build: (tools, body) => tools.exportBuild(body.instancePath, body.outputId, body.style),
+  create_build: (tools, body) => tools.createBuild(body.id, body.style, body.palette, body.parts, body.bounds),
   import_build: (tools, body) => tools.importBuild(body.buildData, body.targetPath, body.position),
   list_library: (tools, body) => tools.listLibrary(body.style),
   import_scene: (tools, body) => tools.importScene(body.sceneData, body.targetPath),

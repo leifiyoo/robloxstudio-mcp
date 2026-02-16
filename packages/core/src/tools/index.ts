@@ -727,6 +727,72 @@ export class RobloxStudioTools {
     };
   }
 
+  async createBuild(
+    id: string,
+    style: string,
+    palette: Record<string, [string, string]>,
+    parts: any[][],
+    bounds?: [number, number, number]
+  ) {
+    if (!id || !palette || !parts || parts.length === 0) {
+      throw new Error('id, palette, and parts are required for create_build');
+    }
+
+    // Validate part arrays have at least 10 elements (pos3 + size3 + rot3 + paletteKey)
+    for (let i = 0; i < parts.length; i++) {
+      if (!Array.isArray(parts[i]) || parts[i].length < 10) {
+        throw new Error(`Part ${i} must have at least 10 elements: [posX, posY, posZ, sizeX, sizeY, sizeZ, rotX, rotY, rotZ, paletteKey]`);
+      }
+    }
+
+    // Auto-compute bounds if not provided
+    const computedBounds = bounds || this.computeBounds(parts);
+
+    const buildData = { id, style, bounds: computedBounds, palette, parts };
+
+    const filePath = path.join(RobloxStudioTools.LIBRARY_PATH, `${id}.json`);
+    const dirPath = path.dirname(filePath);
+
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(buildData, null, 2));
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            id,
+            style,
+            bounds: computedBounds,
+            partCount: parts.length,
+            paletteKeys: Object.keys(palette),
+            savedTo: filePath
+          })
+        }
+      ]
+    };
+  }
+
+  private computeBounds(parts: any[][]): [number, number, number] {
+    let maxX = 0, maxY = 0, maxZ = 0;
+    for (const p of parts) {
+      const px = Math.abs(p[0]) + p[3] / 2;
+      const py = Math.abs(p[1]) + p[4] / 2;
+      const pz = Math.abs(p[2]) + p[5] / 2;
+      maxX = Math.max(maxX, px);
+      maxY = Math.max(maxY, py);
+      maxZ = Math.max(maxZ, pz);
+    }
+    return [
+      Math.round(maxX * 2 * 10) / 10,
+      Math.round(maxY * 2 * 10) / 10,
+      Math.round(maxZ * 2 * 10) / 10
+    ];
+  }
+
   async importBuild(buildData: Record<string, any>, targetPath: string, position?: [number, number, number]) {
     if (!buildData || !targetPath) {
       throw new Error('buildData and targetPath are required for import_build');

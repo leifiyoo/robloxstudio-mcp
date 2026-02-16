@@ -948,6 +948,45 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     }
   },
   {
+    name: 'create_build',
+    category: 'write',
+    description: 'Create a new build model from scratch and save it to the library. Define parts using compact arrays [posX, posY, posZ, sizeX, sizeY, sizeZ, rotX, rotY, rotZ, paletteKey, shape?, transparency?]. Palette maps short keys to [BrickColor, Material] pairs. The build is saved and can be referenced by import_build or import_scene.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'Build ID including style prefix (e.g. "medieval/torch_01", "nature/bush_small")'
+        },
+        style: {
+          type: 'string',
+          enum: ['medieval', 'modern', 'nature', 'scifi', 'misc'],
+          description: 'Style category'
+        },
+        palette: {
+          type: 'object',
+          description: 'Map of short keys (a-z, A-Z) to [BrickColor, Material] pairs. E.g. {"a": ["Dark stone grey", "Concrete"], "b": ["Brown", "Wood"]}'
+        },
+        parts: {
+          type: 'array',
+          description: 'Array of part arrays. Each: [posX, posY, posZ, sizeX, sizeY, sizeZ, rotX, rotY, rotZ, paletteKey, shape?, transparency?]. Shapes: Block (default), Wedge, Cylinder, Ball, CornerWedge.',
+          items: {
+            type: 'array',
+            minItems: 10
+          }
+        },
+        bounds: {
+          type: 'array',
+          items: { type: 'number' },
+          minItems: 3,
+          maxItems: 3,
+          description: 'Optional bounding box [X, Y, Z]. Auto-computed if omitted.'
+        }
+      },
+      required: ['id', 'style', 'palette', 'parts']
+    }
+  },
+  {
     name: 'import_build',
     category: 'write',
     description: 'Import a build from compact JSON format into Roblox Studio. Creates a Model with all parts, applying palette colors/materials, shapes, and transparency.',
