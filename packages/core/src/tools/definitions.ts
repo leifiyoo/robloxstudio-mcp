@@ -925,7 +925,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'export_build',
     category: 'read',
-    description: 'Export a Model/Folder into a compact, token-efficient build JSON format. The output contains a palette (unique BrickColor+Material combos mapped to short keys) and compact part arrays with positions normalized relative to the bounding box center.',
+    description: 'Export a Model/Folder into a compact, token-efficient build JSON format and auto-save it to the local build library. The output contains a palette (unique BrickColor+Material combos mapped to short keys) and compact part arrays with positions normalized relative to the bounding box center. The file is saved to build-library/{style}/{id}.json automatically.',
     inputSchema: {
       type: 'object',
       properties: {

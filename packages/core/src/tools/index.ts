@@ -677,11 +677,21 @@ export class RobloxStudioTools {
   }
 
 
-  private static readonly LIBRARY_PATH = path.join(
-    process.env.USERPROFILE || process.env.HOME || '',
-    'Documents',
-    'roblox-build-library'
-  );
+  private static findLibraryPath(): string {
+    // Walk up from the script location to find the repo root (has .gitignore + package.json)
+    let dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
+    for (let i = 0; i < 6; i++) {
+      const candidate = path.join(dir, 'build-library');
+      if (fs.existsSync(candidate)) return candidate;
+      dir = path.dirname(dir);
+    }
+    // Fallback: create next to wherever we are
+    const fallback = path.join(dir, 'build-library');
+    fs.mkdirSync(fallback, { recursive: true });
+    return fallback;
+  }
+
+  private static readonly LIBRARY_PATH = RobloxStudioTools.findLibraryPath();
 
   async exportBuild(instancePath: string, outputId?: string, style: string = 'misc') {
     if (!instancePath) {
@@ -691,7 +701,22 @@ export class RobloxStudioTools {
       instancePath,
       outputId,
       style
-    });
+    }) as any;
+
+    // Auto-save to library
+    if (response && response.success && response.buildData) {
+      const buildData = response.buildData;
+      const buildId = buildData.id || `${style}/exported`;
+      const filePath = path.join(RobloxStudioTools.LIBRARY_PATH, `${buildId}.json`);
+      const dirPath = path.dirname(filePath);
+
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+      fs.writeFileSync(filePath, JSON.stringify(buildData, null, 2));
+      response.savedTo = filePath;
+    }
+
     return {
       content: [
         {
