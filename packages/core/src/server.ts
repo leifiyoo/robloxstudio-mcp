@@ -6,9 +6,11 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import { createHttpServer } from './http-server.js';
+import http from 'http';
+import { createHttpServer, listenWithRetry } from './http-server.js';
 import { RobloxStudioTools } from './tools/index.js';
 import { BridgeService } from './bridge-service.js';
+import { ProxyBridgeService } from './proxy-bridge-service.js';
 import type { ToolDefinition } from './tools/definitions.js';
 
 export interface ServerConfig {
@@ -176,6 +178,28 @@ export class RobloxStudioMCPServer {
           case 'get_playtest_output':
             return await this.tools.getPlaytestOutput();
 
+          case 'export_build':
+            return await this.tools.exportBuild((args as any)?.instancePath as string, (args as any)?.outputId, (args as any)?.style);
+          case 'create_build':
+            return await this.tools.createBuild((args as any)?.id as string, (args as any)?.style as string, (args as any)?.palette, (args as any)?.parts, (args as any)?.bounds);
+          case 'generate_build':
+            return await this.tools.generateBuild((args as any)?.id as string, (args as any)?.style as string, (args as any)?.palette, (args as any)?.code as string, (args as any)?.seed);
+          case 'import_build':
+            return await this.tools.importBuild((args as any)?.buildData, (args as any)?.targetPath as string, (args as any)?.position);
+          case 'list_library':
+            return await this.tools.listLibrary((args as any)?.style);
+          case 'search_materials':
+            return await this.tools.searchMaterials((args as any)?.query, (args as any)?.maxResults);
+          case 'get_build':
+            return await this.tools.getBuild((args as any)?.id as string);
+          case 'import_scene':
+            return await this.tools.importScene((args as any)?.sceneData, (args as any)?.targetPath);
+
+          case 'undo':
+            return await this.tools.undo();
+          case 'redo':
+            return await this.tools.redo();
+
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -194,98 +218,100 @@ export class RobloxStudioMCPServer {
 
   async run() {
     const basePort = process.env.ROBLOX_STUDIO_PORT ? parseInt(process.env.ROBLOX_STUDIO_PORT) : 58741;
-    const maxPort = basePort + 4;
     const host = process.env.ROBLOX_STUDIO_HOST || '0.0.0.0';
-    const httpServer = createHttpServer(this.tools, this.bridge, this.allowedToolNames);
-
+    let bridgeMode: 'primary' | 'proxy' = 'primary';
+    let httpHandle: http.Server | undefined;
+    let primaryApp: ReturnType<typeof createHttpServer> | undefined;
     let boundPort = 0;
-    let httpHandle: import('http').Server | undefined;
-    for (let port = basePort; port <= maxPort; port++) {
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const onError = (err: NodeJS.ErrnoException) => {
-            if (err.code === 'EADDRINUSE') {
-              httpServer.removeListener('error', onError);
-              reject(err);
-            } else {
-              reject(err);
-            }
-          };
-          httpServer.once('error', onError);
-          httpHandle = httpServer.listen(port, host, () => {
-            httpServer.removeListener('error', onError);
-            boundPort = port;
-            console.error(`HTTP server listening on ${host}:${port} for Studio plugin`);
-            resolve();
-          });
-        });
-        break;
-      } catch (err: any) {
-        if (err.code === 'EADDRINUSE') {
-          console.error(`Port ${port} in use, trying next...`);
-          if (port === maxPort) {
-            throw new Error(`All ports ${basePort}-${maxPort} are in use. Stop some MCP server instances and retry.`);
-          }
-          continue;
+    let promotionInterval: ReturnType<typeof setInterval> | undefined;
+
+    // Try to bind as primary
+    try {
+      primaryApp = createHttpServer(this.tools, this.bridge, this.allowedToolNames);
+      const result = await listenWithRetry(primaryApp, host, basePort, 5);
+      httpHandle = result.server;
+      boundPort = result.port;
+      console.error(`HTTP server listening on ${host}:${boundPort} for Studio plugin (primary mode)`);
+    } catch {
+      // All ports in use — fall back to proxy mode
+      bridgeMode = 'proxy';
+      primaryApp = undefined;
+      const proxyBridge = new ProxyBridgeService(`http://localhost:${basePort}`);
+      this.bridge = proxyBridge;
+      this.tools = new RobloxStudioTools(this.bridge);
+      console.error(`All ports ${basePort}-${basePort + 4} in use — entering proxy mode (forwarding to localhost:${basePort})`);
+
+      // Periodically try to promote to primary if the port frees up
+      const promotionIntervalMs = parseInt(process.env.ROBLOX_STUDIO_PROXY_PROMOTION_INTERVAL_MS || '5000');
+      promotionInterval = setInterval(async () => {
+        try {
+          this.bridge = new BridgeService();
+          this.tools = new RobloxStudioTools(this.bridge);
+          primaryApp = createHttpServer(this.tools, this.bridge, this.allowedToolNames);
+          const result = await listenWithRetry(primaryApp, host, basePort, 5);
+          httpHandle = result.server;
+          boundPort = result.port;
+          bridgeMode = 'primary';
+          (primaryApp as any).setMCPServerActive(true);
+          console.error(`Promoted from proxy to primary on port ${boundPort}`);
+          if (promotionInterval) clearInterval(promotionInterval);
+        } catch {
+          // Still can't bind — stay in proxy mode, restore proxy bridge
+          this.bridge = new ProxyBridgeService(`http://localhost:${basePort}`);
+          this.tools = new RobloxStudioTools(this.bridge);
+          primaryApp = undefined;
         }
-        throw err;
-      }
+      }, promotionIntervalMs);
     }
 
+    // Legacy port 3002 for old plugins
     const LEGACY_PORT = 3002;
-    let legacyHandle: import('http').Server | undefined;
-    let legacyServer: ReturnType<typeof createHttpServer> | undefined;
-    if (boundPort !== LEGACY_PORT) {
-      const legacy = createHttpServer(this.tools, this.bridge, this.allowedToolNames);
-      legacyServer = legacy;
+    let legacyHandle: http.Server | undefined;
+    let legacyApp: ReturnType<typeof createHttpServer> | undefined;
+    if (boundPort !== LEGACY_PORT && bridgeMode === 'primary') {
+      legacyApp = createHttpServer(this.tools, this.bridge, this.allowedToolNames);
       try {
-        await new Promise<void>((resolve, reject) => {
-          const onError = (err: NodeJS.ErrnoException) => {
-            if (err.code === 'EADDRINUSE') {
-              legacy.removeListener('error', onError);
-              reject(err);
-            } else {
-              reject(err);
-            }
-          };
-          legacy.once('error', onError);
-          legacyHandle = legacy.listen(LEGACY_PORT, host, () => {
-            legacy.removeListener('error', onError);
-            console.error(`Legacy HTTP server also listening on ${host}:${LEGACY_PORT} for old plugins`);
-            resolve();
-          });
-        });
-
-        (legacy as any).setMCPServerActive(true);
+        const result = await listenWithRetry(legacyApp, host, LEGACY_PORT, 1);
+        legacyHandle = result.server;
+        console.error(`Legacy HTTP server also listening on ${host}:${LEGACY_PORT} for old plugins`);
+        (legacyApp as any).setMCPServerActive(true);
       } catch {
-
         console.error(`Legacy port ${LEGACY_PORT} in use, skipping backward-compat listener`);
       }
     }
 
-
+    // Start stdio MCP transport
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error(`${this.config.name} v${this.config.version} running on stdio`);
 
-    (httpServer as any).setMCPServerActive(true);
-    console.error('MCP server marked as active');
+    if (primaryApp) {
+      (primaryApp as any).setMCPServerActive(true);
+    }
+
+    console.error(bridgeMode === 'primary'
+      ? 'MCP server marked as active (primary mode)'
+      : 'MCP server active in proxy mode — forwarding requests to primary');
 
     console.error('Waiting for Studio plugin to connect...');
 
     const activityInterval = setInterval(() => {
-      (httpServer as any).trackMCPActivity();
-      if (legacyServer) (legacyServer as any).trackMCPActivity();
-      const pluginConnected = (httpServer as any).isPluginConnected();
-      const mcpActive = (httpServer as any).isMCPServerActive();
+      if (primaryApp) (primaryApp as any).trackMCPActivity();
+      if (legacyApp) (legacyApp as any).trackMCPActivity();
 
-      if (pluginConnected && mcpActive) {
-      } else if (pluginConnected && !mcpActive) {
-        console.error('Studio plugin connected, but MCP server inactive');
-      } else if (!pluginConnected && mcpActive) {
-        console.error('MCP server active, waiting for Studio plugin...');
-      } else {
-        console.error('Waiting for connections...');
+      if (bridgeMode === 'primary' && primaryApp) {
+        const pluginConnected = (primaryApp as any).isPluginConnected();
+        const mcpActive = (primaryApp as any).isMCPServerActive();
+
+        if (pluginConnected && mcpActive) {
+          // All good
+        } else if (pluginConnected && !mcpActive) {
+          console.error('Studio plugin connected, but MCP server inactive');
+        } else if (!pluginConnected && mcpActive) {
+          console.error('MCP server active, waiting for Studio plugin...');
+        } else {
+          console.error('Waiting for connections...');
+        }
       }
     }, 5000);
 
@@ -297,6 +323,7 @@ export class RobloxStudioMCPServer {
       console.error('Shutting down MCP server...');
       clearInterval(activityInterval);
       clearInterval(cleanupInterval);
+      if (promotionInterval) clearInterval(promotionInterval);
       if (httpHandle) httpHandle.close();
       if (legacyHandle) legacyHandle.close();
       process.exit(0);

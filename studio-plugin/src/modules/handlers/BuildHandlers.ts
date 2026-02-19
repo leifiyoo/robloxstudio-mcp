@@ -1,8 +1,10 @@
 import Utils from "../Utils";
+import Recording from "../Recording";
 
-const ChangeHistoryService = game.GetService("ChangeHistoryService");
+const MaterialService = game.GetService("MaterialService");
 
 const { getInstancePath, getInstanceByPath } = Utils;
+const { beginRecording, finishRecording } = Recording;
 
 // Material name lookup table
 const MATERIAL_NAMES: Record<string, Enum.Material> = {
@@ -103,21 +105,26 @@ function exportBuild(requestData: Record<string, unknown>) {
 		const boundsY = roundTo(maxY - minY, 1);
 		const boundsZ = roundTo(maxZ - minZ, 1);
 
-		// Build palette from unique (BrickColor, Material) combos
+		// Build palette from unique (BrickColor, Material, MaterialVariant?) combos
 		const paletteMap = new Map<string, string>();
-		const palette: Record<string, [string, string]> = {};
+		const palette: Record<string, [string, string] | [string, string, string]> = {};
 		let keyIndex = 0;
 
 		for (const part of baseParts) {
 			const colorName = part.BrickColor.Name;
 			const materialName = part.Material.Name;
-			const combo = `${colorName}|${materialName}`;
+			const variantName = part.MaterialVariant;
+			const combo = variantName !== "" ? `${colorName}|${materialName}|${variantName}` : `${colorName}|${materialName}`;
 
 			if (!paletteMap.has(combo)) {
 				const key = PALETTE_KEYS.sub(keyIndex + 1, keyIndex + 1);
 				keyIndex++;
 				paletteMap.set(combo, key);
-				palette[key] = [colorName, materialName];
+				if (variantName !== "") {
+					palette[key] = [colorName, materialName, variantName];
+				} else {
+					palette[key] = [colorName, materialName];
+				}
 			}
 		}
 
@@ -206,9 +213,10 @@ function importBuild(requestData: Record<string, unknown>) {
 
 	const parentInstance = getInstanceByPath(targetPath);
 	if (!parentInstance) return { error: `Target not found: ${targetPath}` };
+	const recordingId = beginRecording("Import build");
 
 	const [success, result] = pcall(() => {
-		const palette = buildData.palette as Record<string, [string, string]>;
+		const palette = buildData.palette as Record<string, [string, string, string?]>;
 		const parts = buildData.parts as unknown[][];
 		const buildId = (buildData.id as string) ?? "imported_build";
 
@@ -257,7 +265,7 @@ function importBuild(requestData: Record<string, unknown>) {
 			// Apply palette
 			const paletteEntry = palette[paletteKey];
 			if (paletteEntry) {
-				const [colorName, materialName] = paletteEntry;
+				const [colorName, materialName, variantName] = paletteEntry;
 				pcall(() => {
 					part.BrickColor = new BrickColor(colorName as unknown as number);
 				});
@@ -267,6 +275,12 @@ function importBuild(requestData: Record<string, unknown>) {
 						part.Material = mat;
 					}
 				});
+				// Apply MaterialVariant if specified
+				if (variantName !== undefined && variantName !== "") {
+					pcall(() => {
+						part.MaterialVariant = variantName;
+					});
+				}
 			}
 
 			part.Parent = model;
@@ -274,7 +288,6 @@ function importBuild(requestData: Record<string, unknown>) {
 		}
 
 		model.Parent = parentInstance;
-		ChangeHistoryService.SetWaypoint(`Import build: ${model.Name}`);
 
 		return {
 			success: true,
@@ -284,8 +297,10 @@ function importBuild(requestData: Record<string, unknown>) {
 	});
 
 	if (success && result) {
+		finishRecording(recordingId, true);
 		return result;
 	} else {
+		finishRecording(recordingId, false);
 		return { error: `Failed to import build: ${result}` };
 	}
 }
@@ -300,6 +315,7 @@ function importScene(requestData: Record<string, unknown>) {
 
 	const parentInstance = getInstanceByPath(targetPath);
 	if (!parentInstance) return { error: `Target not found: ${targetPath}` };
+	const recordingId = beginRecording("Import scene");
 
 	const [success, result] = pcall(() => {
 		let modelCount = 0;
@@ -312,7 +328,7 @@ function importScene(requestData: Record<string, unknown>) {
 			const rotation = (entry.rotation as number[]) ?? [0, 0, 0];
 			const name = (entry.name as string) ?? "SceneModel";
 
-			const palette = buildData.palette as Record<string, [string, string]>;
+			const palette = buildData.palette as Record<string, [string, string, string?]>;
 			const parts = buildData.parts as unknown[][];
 
 			const model = new Instance("Model");
@@ -368,7 +384,7 @@ function importScene(requestData: Record<string, unknown>) {
 
 				const paletteEntry = palette[paletteKey];
 				if (paletteEntry) {
-					const [colorName, materialName] = paletteEntry;
+					const [colorName, materialName, variantName] = paletteEntry;
 					pcall(() => {
 						part.BrickColor = new BrickColor(colorName as unknown as number);
 					});
@@ -378,6 +394,11 @@ function importScene(requestData: Record<string, unknown>) {
 							part.Material = mat;
 						}
 					});
+					if (variantName !== undefined && variantName !== "") {
+						pcall(() => {
+							part.MaterialVariant = variantName;
+						});
+					}
 				}
 
 				part.Parent = model;
@@ -394,8 +415,6 @@ function importScene(requestData: Record<string, unknown>) {
 			});
 		}
 
-		ChangeHistoryService.SetWaypoint(`Import scene (${modelCount} models)`);
-
 		return {
 			success: true,
 			modelCount: modelCount,
@@ -405,9 +424,47 @@ function importScene(requestData: Record<string, unknown>) {
 	});
 
 	if (success && result) {
+		finishRecording(recordingId, true);
 		return result;
 	} else {
+		finishRecording(recordingId, false);
 		return { error: `Failed to import scene: ${result}` };
+	}
+}
+
+function searchMaterials(requestData: Record<string, unknown>) {
+	const query = ((requestData.query as string) ?? "").lower();
+	const maxResults = (requestData.maxResults as number) ?? 50;
+
+	const [success, result] = pcall(() => {
+		const children = MaterialService.GetChildren();
+		const materials: Record<string, unknown>[] = [];
+
+		for (const child of children) {
+			if (!child.IsA("MaterialVariant")) continue;
+
+			const nameMatch = query === "" || child.Name.lower().find(query)[0] !== undefined;
+			if (!nameMatch) continue;
+
+			materials.push({
+				name: child.Name,
+				baseMaterial: child.BaseMaterial.Name,
+			});
+
+			if (materials.size() >= maxResults) break;
+		}
+
+		return {
+			success: true,
+			materials: materials,
+			total: materials.size(),
+		};
+	});
+
+	if (success && result) {
+		return result;
+	} else {
+		return { error: `Failed to search materials: ${result}` };
 	}
 }
 
@@ -415,4 +472,5 @@ export = {
 	exportBuild,
 	importBuild,
 	importScene,
+	searchMaterials,
 };

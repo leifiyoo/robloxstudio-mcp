@@ -56,6 +56,8 @@ const routeMap: Record<string, Handler> = {
 	"/api/get-tagged": MetadataHandlers.getTagged,
 	"/api/get-selection": MetadataHandlers.getSelection,
 	"/api/execute-luau": MetadataHandlers.executeLuau,
+	"/api/undo": MetadataHandlers.undo,
+	"/api/redo": MetadataHandlers.redo,
 
 	"/api/start-playtest": TestHandlers.startPlaytest,
 	"/api/stop-playtest": TestHandlers.stopPlaytest,
@@ -64,6 +66,7 @@ const routeMap: Record<string, Handler> = {
 	"/api/export-build": BuildHandlers.exportBuild,
 	"/api/import-build": BuildHandlers.importBuild,
 	"/api/import-scene": BuildHandlers.importScene,
+	"/api/search-materials": BuildHandlers.searchMaterials,
 };
 
 function processRequest(request: RequestPayload): unknown {

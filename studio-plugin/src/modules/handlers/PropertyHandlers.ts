@@ -1,8 +1,8 @@
 import Utils from "../Utils";
-
-const ChangeHistoryService = game.GetService("ChangeHistoryService");
+import Recording from "../Recording";
 
 const { getInstanceByPath, convertPropertyValue, evaluateFormula } = Utils;
+const { beginRecording, finishRecording } = Recording;
 
 function setProperty(requestData: Record<string, unknown>) {
 	const instancePath = requestData.instancePath as string;
@@ -15,6 +15,7 @@ function setProperty(requestData: Record<string, unknown>) {
 
 	const instance = getInstanceByPath(instancePath);
 	if (!instance) return { error: `Instance not found: ${instancePath}` };
+	const recordingId = beginRecording(`Set ${propertyName} property`);
 
 	const inst = instance as unknown as Record<string, unknown>;
 
@@ -41,11 +42,11 @@ function setProperty(requestData: Record<string, unknown>) {
 			}
 		}
 
-		ChangeHistoryService.SetWaypoint(`Set ${propertyName} property`);
 		return true;
 	});
 
 	if (success) {
+		finishRecording(recordingId, true);
 		return {
 			success: true,
 			instancePath,
@@ -54,6 +55,7 @@ function setProperty(requestData: Record<string, unknown>) {
 			message: "Property set successfully",
 		};
 	} else {
+		finishRecording(recordingId, false);
 		return { error: `Failed to set property: ${result}`, instancePath, propertyName };
 	}
 }
@@ -70,6 +72,7 @@ function massSetProperty(requestData: Record<string, unknown>) {
 	const results: Record<string, unknown>[] = [];
 	let successCount = 0;
 	let failureCount = 0;
+	const recordingId = beginRecording(`Mass set ${propertyName} property`);
 
 	for (const path of paths) {
 		const instance = getInstanceByPath(path);
@@ -90,9 +93,7 @@ function massSetProperty(requestData: Record<string, unknown>) {
 		}
 	}
 
-	if (successCount > 0) {
-		ChangeHistoryService.SetWaypoint(`Mass set ${propertyName} property`);
-	}
+	finishRecording(recordingId, successCount > 0);
 
 	return {
 		results,
@@ -140,6 +141,7 @@ function setCalculatedProperty(requestData: Record<string, unknown>) {
 	const results: Record<string, unknown>[] = [];
 	let successCount = 0;
 	let failureCount = 0;
+	const recordingId = beginRecording(`Set calculated ${propertyName} property`);
 
 	for (let i = 0; i < paths.size(); i++) {
 		const path = paths[i];
@@ -168,9 +170,7 @@ function setCalculatedProperty(requestData: Record<string, unknown>) {
 		}
 	}
 
-	if (successCount > 0) {
-		ChangeHistoryService.SetWaypoint(`Set calculated ${propertyName} property`);
-	}
+	finishRecording(recordingId, successCount > 0);
 
 	return {
 		results,
@@ -193,6 +193,7 @@ function setRelativeProperty(requestData: Record<string, unknown>) {
 	const results: Record<string, unknown>[] = [];
 	let successCount = 0;
 	let failureCount = 0;
+	const recordingId = beginRecording(`Set relative ${propertyName} property`);
 
 	function applyOp(current: number, op: string, val: number): number {
 		if (op === "add") return current + val;
@@ -261,9 +262,7 @@ function setRelativeProperty(requestData: Record<string, unknown>) {
 		}
 	}
 
-	if (successCount > 0) {
-		ChangeHistoryService.SetWaypoint(`Set relative ${propertyName} property`);
-	}
+	finishRecording(recordingId, successCount > 0);
 
 	return {
 		results,

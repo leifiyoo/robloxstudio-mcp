@@ -1,5 +1,6 @@
 import { StudioHttpClient } from './studio-client.js';
 import { BridgeService } from '../bridge-service.js';
+import { runBuildExecutor } from './build-executor.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -676,6 +677,30 @@ export class RobloxStudioTools {
     };
   }
 
+  async undo() {
+    const response = await this.client.request('/api/undo', {});
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
+
+  async redo() {
+    const response = await this.client.request('/api/redo', {});
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
+
 
   private static findLibraryPath(): string {
     // Walk up from the script location to find the repo root (has .gitignore + package.json)
@@ -793,12 +818,89 @@ export class RobloxStudioTools {
     ];
   }
 
-  async importBuild(buildData: Record<string, any>, targetPath: string, position?: [number, number, number]) {
-    if (!buildData || !targetPath) {
-      throw new Error('buildData and targetPath are required for import_build');
+  async generateBuild(
+    id: string,
+    style: string,
+    palette: Record<string, [string, string]>,
+    code: string,
+    seed?: number
+  ) {
+    if (!id || !palette || !code) {
+      throw new Error('id, palette, and code are required for generate_build');
     }
+
+    // Validate palette
+    for (const [key, value] of Object.entries(palette)) {
+      if (!Array.isArray(value) || value.length < 2 || value.length > 3) {
+        throw new Error(`Palette key "${key}" must map to [BrickColor, Material] or [BrickColor, Material, MaterialVariant]`);
+      }
+    }
+
+    // Run the build executor
+    const result = runBuildExecutor(code, palette, seed);
+
+    const buildData: Record<string, any> = {
+      id,
+      style,
+      bounds: result.bounds,
+      palette,
+      parts: result.parts,
+      generatorCode: code,
+    };
+    if (seed !== undefined) buildData.generatorSeed = seed;
+
+    const filePath = path.join(RobloxStudioTools.LIBRARY_PATH, `${id}.json`);
+    const dirPath = path.dirname(filePath);
+
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(buildData, null, 2));
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            id,
+            style,
+            bounds: result.bounds,
+            partCount: result.partCount,
+            paletteKeys: Object.keys(palette),
+            savedTo: filePath
+          })
+        }
+      ]
+    };
+  }
+
+  async importBuild(buildData: Record<string, any> | string, targetPath: string, position?: [number, number, number]) {
+    if (!buildData || !targetPath) {
+      throw new Error('buildData (or library ID string) and targetPath are required for import_build');
+    }
+
+    // If buildData is a string, treat it as a library ID and load the file
+    let resolved: Record<string, any>;
+    if (typeof buildData === 'string') {
+      const filePath = path.join(RobloxStudioTools.LIBRARY_PATH, `${buildData}.json`);
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Build not found in library: ${buildData}`);
+      }
+      resolved = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } else if (buildData.id && !buildData.parts) {
+      // Object with just an id — try loading from library
+      const filePath = path.join(RobloxStudioTools.LIBRARY_PATH, `${buildData.id}.json`);
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Build not found in library: ${buildData.id}`);
+      }
+      resolved = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } else {
+      resolved = buildData;
+    }
+
     const response = await this.client.request('/api/import-build', {
-      buildData,
+      buildData: resolved,
       targetPath,
       position
     });
@@ -843,6 +945,58 @@ export class RobloxStudioTools {
         {
           type: 'text',
           text: JSON.stringify({ builds, total: builds.length })
+        }
+      ]
+    };
+  }
+
+  async searchMaterials(query?: string, maxResults?: number) {
+    const response = await this.client.request('/api/search-materials', {
+      query: query ?? '',
+      maxResults: maxResults ?? 50
+    });
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response)
+        }
+      ]
+    };
+  }
+
+  async getBuild(id: string) {
+    if (!id) {
+      throw new Error('Build ID is required for get_build');
+    }
+
+    const filePath = path.join(RobloxStudioTools.LIBRARY_PATH, `${id}.json`);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Build not found in library: ${id}`);
+    }
+
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+    // Return metadata + code (but not the full parts array to save tokens)
+    const result: Record<string, any> = {
+      id: data.id,
+      style: data.style,
+      bounds: data.bounds,
+      partCount: Array.isArray(data.parts) ? data.parts.length : 0,
+      paletteKeys: data.palette ? Object.keys(data.palette) : [],
+      palette: data.palette,
+    };
+
+    if (data.generatorCode) {
+      result.generatorCode = data.generatorCode;
+      result.generatorSeed = data.generatorSeed;
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(result)
         }
       ]
     };

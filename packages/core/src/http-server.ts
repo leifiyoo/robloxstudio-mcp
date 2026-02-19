@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import http from 'http';
 import { RobloxStudioTools } from './tools/index.js';
 import { BridgeService } from './bridge-service.js';
 
@@ -58,9 +59,14 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   get_playtest_output: (tools) => tools.getPlaytestOutput(),
   export_build: (tools, body) => tools.exportBuild(body.instancePath, body.outputId, body.style),
   create_build: (tools, body) => tools.createBuild(body.id, body.style, body.palette, body.parts, body.bounds),
+  generate_build: (tools, body) => tools.generateBuild(body.id, body.style, body.palette, body.code, body.seed),
   import_build: (tools, body) => tools.importBuild(body.buildData, body.targetPath, body.position),
   list_library: (tools, body) => tools.listLibrary(body.style),
+  search_materials: (tools, body) => tools.searchMaterials(body.query, body.maxResults),
+  get_build: (tools, body) => tools.getBuild(body.id),
   import_scene: (tools, body) => tools.importScene(body.sceneData, body.targetPath),
+  undo: (tools) => tools.undo(),
+  redo: (tools) => tools.redo(),
 };
 
 export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService, allowedTools?: Set<string>) {
@@ -70,7 +76,7 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
   let lastMCPActivity = 0;
   let mcpServerStartTime = 0;
   let lastPluginActivity = 0;
-
+  const proxyInstances = new Set<string>();
 
   const setMCPServerActive = (active: boolean) => {
     mcpServerActive = active;
@@ -91,14 +97,11 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
 
   const isMCPServerActive = () => {
     if (!mcpServerActive) return false;
-    const now = Date.now();
-    const mcpRecent = (now - lastMCPActivity) < 15000;
-    return mcpRecent;
+    return (Date.now() - lastMCPActivity) < 30000;
   };
 
   const isPluginConnected = () => {
-
-    return pluginConnected && (Date.now() - lastPluginActivity < 10000);
+    return pluginConnected && (Date.now() - lastPluginActivity < 30000);
   };
 
   app.use(cors());
@@ -112,15 +115,13 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
       service: 'robloxstudio-mcp',
       pluginConnected,
       mcpServerActive: isMCPServerActive(),
-      uptime: mcpServerActive ? Date.now() - mcpServerStartTime : 0
+      uptime: mcpServerActive ? Date.now() - mcpServerStartTime : 0,
+      proxyInstanceCount: proxyInstances.size
     });
   });
 
 
   app.post('/ready', (req, res) => {
-
-
-    bridge.clearAllPendingRequests();
     pluginConnected = true;
     lastPluginActivity = Date.now();
     res.json({ success: true });
@@ -129,7 +130,6 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
 
   app.post('/disconnect', (req, res) => {
     pluginConnected = false;
-
     bridge.clearAllPendingRequests();
     res.json({ success: true });
   });
@@ -146,7 +146,6 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
 
 
   app.get('/poll', (req, res) => {
-
     if (!pluginConnected) {
       pluginConnected = true;
     }
@@ -168,13 +167,15 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
         request: pendingRequest.request,
         requestId: pendingRequest.requestId,
         mcpConnected: true,
-        pluginConnected: true
+        pluginConnected: true,
+        proxyInstanceCount: proxyInstances.size
       });
     } else {
       res.json({
         request: null,
         mcpConnected: true,
-        pluginConnected: true
+        pluginConnected: true,
+        proxyInstanceCount: proxyInstances.size
       });
     }
   });
@@ -192,6 +193,26 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
     res.json({ success: true });
   });
 
+
+  app.post('/proxy', async (req, res) => {
+    const { endpoint, data, proxyInstanceId } = req.body;
+
+    if (!endpoint) {
+      res.status(400).json({ error: 'endpoint is required' });
+      return;
+    }
+
+    if (proxyInstanceId) {
+      proxyInstances.add(proxyInstanceId);
+    }
+
+    try {
+      const response = await bridge.sendRequest(endpoint, data);
+      res.json({ response });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Proxy request failed' });
+    }
+  });
 
 
   app.use('/mcp/*', (req, res, next) => {
@@ -220,4 +241,49 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
   (app as any).trackMCPActivity = trackMCPActivity;
 
   return app;
+}
+
+/**
+ * Attempt to bind an Express app to a port, using an explicit http.Server
+ * so that EADDRINUSE errors are properly caught.
+ */
+export function listenWithRetry(
+  app: express.Express,
+  host: string,
+  startPort: number,
+  maxAttempts: number = 5
+): Promise<{ server: http.Server; port: number }> {
+  return new Promise(async (resolve, reject) => {
+    for (let i = 0; i < maxAttempts; i++) {
+      const port = startPort + i;
+      try {
+        const server = await bindPort(app, host, port);
+        resolve({ server, port });
+        return;
+      } catch (err: any) {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`Port ${port} in use, trying next...`);
+          continue;
+        }
+        reject(err);
+        return;
+      }
+    }
+    reject(new Error(`All ports ${startPort}-${startPort + maxAttempts - 1} are in use. Stop some MCP server instances and retry.`));
+  });
+}
+
+function bindPort(app: express.Express, host: string, port: number): Promise<http.Server> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer(app);
+    const onError = (err: NodeJS.ErrnoException) => {
+      server.removeListener('error', onError);
+      reject(err);
+    };
+    server.once('error', onError);
+    server.listen(port, host, () => {
+      server.removeListener('error', onError);
+      resolve(server);
+    });
+  });
 }
