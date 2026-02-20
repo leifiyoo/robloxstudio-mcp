@@ -10,3 +10,14 @@ export {
   getReadOnlyTools,
 } from './tools/definitions.js';
 export type { ToolDefinition, ToolCategory } from './tools/definitions.js';
+export { OpenCloudClient } from './opencloud-client.js';
+export type {
+  OpenCloudConfig,
+  AssetSearchParams,
+  CreatorStoreAsset,
+  AssetSearchResponse,
+  AssetInfo,
+  CreatorInfo,
+  VotingInfo,
+  ThumbnailResponse,
+} from './opencloud-client.js';

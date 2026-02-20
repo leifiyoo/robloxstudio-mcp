@@ -1187,6 +1187,134 @@ part(0,2,0,2,1,1,"b")`,
       required: ['sceneData']
     }
   },
+
+  // === Asset Tools ===
+  {
+    name: 'search_assets',
+    category: 'read',
+    description: 'Search the Creator Store (Roblox marketplace) for assets by type and keywords. Requires ROBLOX_OPEN_CLOUD_API_KEY env var.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        assetType: {
+          type: 'string',
+          enum: ['Audio', 'Model', 'Decal', 'Plugin', 'MeshPart', 'Video', 'FontFamily'],
+          description: 'Type of asset to search for'
+        },
+        query: {
+          type: 'string',
+          description: 'Search keywords'
+        },
+        maxResults: {
+          type: 'number',
+          description: 'Max results to return (default: 25)',
+          default: 25
+        },
+        sortBy: {
+          type: 'string',
+          enum: ['Relevance', 'Trending', 'Top', 'AudioDuration', 'CreateTime', 'UpdatedTime', 'Ratings'],
+          description: 'Sort order (default: Relevance)',
+          default: 'Relevance'
+        },
+        verifiedCreatorsOnly: {
+          type: 'boolean',
+          description: 'Only show assets from verified creators',
+          default: false
+        }
+      },
+      required: ['assetType']
+    }
+  },
+  {
+    name: 'get_asset_details',
+    category: 'read',
+    description: 'Get detailed marketplace metadata for a specific asset (creator info, votes, description, pricing). Requires ROBLOX_OPEN_CLOUD_API_KEY env var.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        assetId: {
+          type: 'number',
+          description: 'The Roblox asset ID'
+        }
+      },
+      required: ['assetId']
+    }
+  },
+  {
+    name: 'get_asset_thumbnail',
+    category: 'read',
+    description: 'Get the thumbnail image for an asset as base64 PNG, suitable for vision LLMs. Requires ROBLOX_OPEN_CLOUD_API_KEY env var.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        assetId: {
+          type: 'number',
+          description: 'The Roblox asset ID'
+        },
+        size: {
+          type: 'string',
+          enum: ['150x150', '420x420', '768x432'],
+          description: 'Thumbnail size (default: 420x420)',
+          default: '420x420'
+        }
+      },
+      required: ['assetId']
+    }
+  },
+  {
+    name: 'insert_asset',
+    category: 'write',
+    description: 'Insert a Roblox asset into Studio by loading it via AssetService and parenting it to a target location. Optionally set position.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        assetId: {
+          type: 'number',
+          description: 'The Roblox asset ID to insert'
+        },
+        parentPath: {
+          type: 'string',
+          description: 'Parent instance path (default: game.Workspace)',
+          default: 'game.Workspace'
+        },
+        position: {
+          type: 'object',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' }
+          },
+          description: 'Optional world position to place the asset'
+        }
+      },
+      required: ['assetId']
+    }
+  },
+  {
+    name: 'preview_asset',
+    category: 'read',
+    description: 'Preview a Roblox asset without permanently inserting it. Loads the asset, builds a hierarchy tree with properties and summary stats, then destroys it. Useful for inspecting asset contents before insertion.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        assetId: {
+          type: 'number',
+          description: 'The Roblox asset ID to preview'
+        },
+        includeProperties: {
+          type: 'boolean',
+          description: 'Include detailed properties for each instance (default: true)',
+          default: true
+        },
+        maxDepth: {
+          type: 'number',
+          description: 'Max hierarchy traversal depth (default: 10)',
+          default: 10
+        }
+      },
+      required: ['assetId']
+    }
+  },
 ];
 
 export const getReadOnlyTools = () => TOOL_DEFINITIONS.filter(t => t.category === 'read');

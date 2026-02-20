@@ -67,6 +67,11 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   import_scene: (tools, body) => tools.importScene(body.sceneData, body.targetPath),
   undo: (tools) => tools.undo(),
   redo: (tools) => tools.redo(),
+  search_assets: (tools, body) => tools.searchAssets(body.assetType, body.query, body.maxResults, body.sortBy, body.verifiedCreatorsOnly),
+  get_asset_details: (tools, body) => tools.getAssetDetails(body.assetId),
+  get_asset_thumbnail: (tools, body) => tools.getAssetThumbnail(body.assetId, body.size),
+  insert_asset: (tools, body) => tools.insertAsset(body.assetId, body.parentPath, body.position),
+  preview_asset: (tools, body) => tools.previewAsset(body.assetId, body.includeProperties, body.maxDepth),
 };
 
 export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService, allowedTools?: Set<string>) {

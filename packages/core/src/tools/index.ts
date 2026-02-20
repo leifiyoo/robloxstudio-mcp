@@ -1,14 +1,17 @@
 import { StudioHttpClient } from './studio-client.js';
 import { BridgeService } from '../bridge-service.js';
 import { runBuildExecutor } from './build-executor.js';
+import { OpenCloudClient } from '../opencloud-client.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export class RobloxStudioTools {
   private client: StudioHttpClient;
+  private openCloudClient: OpenCloudClient;
 
   constructor(bridge: BridgeService) {
     this.client = new StudioHttpClient(bridge);
+    this.openCloudClient = new OpenCloudClient();
   }
 
 
@@ -1074,6 +1077,129 @@ export class RobloxStudioTools {
           text: JSON.stringify(response)
         }
       ]
+    };
+  }
+
+
+  // === Asset Tools ===
+
+  async searchAssets(
+    assetType: string,
+    query?: string,
+    maxResults?: number,
+    sortBy?: string,
+    verifiedCreatorsOnly?: boolean
+  ) {
+    if (!this.openCloudClient.hasApiKey()) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({ error: 'ROBLOX_OPEN_CLOUD_API_KEY environment variable is not set. Set it to use Creator Store asset tools.' })
+        }]
+      };
+    }
+
+    const response = await this.openCloudClient.searchAssets({
+      searchCategoryType: assetType as any,
+      query,
+      maxPageSize: maxResults,
+      sortCategory: sortBy as any,
+      includeOnlyVerifiedCreators: verifiedCreatorsOnly,
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(response)
+      }]
+    };
+  }
+
+  async getAssetDetails(assetId: number) {
+    if (!assetId) {
+      throw new Error('Asset ID is required for get_asset_details');
+    }
+    if (!this.openCloudClient.hasApiKey()) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({ error: 'ROBLOX_OPEN_CLOUD_API_KEY environment variable is not set. Set it to use Creator Store asset tools.' })
+        }]
+      };
+    }
+
+    const response = await this.openCloudClient.getAssetDetails(assetId);
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(response)
+      }]
+    };
+  }
+
+  async getAssetThumbnail(assetId: number, size?: string) {
+    if (!assetId) {
+      throw new Error('Asset ID is required for get_asset_thumbnail');
+    }
+    if (!this.openCloudClient.hasApiKey()) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({ error: 'ROBLOX_OPEN_CLOUD_API_KEY environment variable is not set. Set it to use Creator Store asset tools.' })
+        }]
+      };
+    }
+
+    const result = await this.openCloudClient.getAssetThumbnail(assetId, size as any);
+    if (!result) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({ error: 'Thumbnail not available for this asset' })
+        }]
+      };
+    }
+
+    return {
+      content: [{
+        type: 'image',
+        data: result.base64,
+        mimeType: result.mimeType,
+      }]
+    };
+  }
+
+  async insertAsset(assetId: number, parentPath?: string, position?: { x: number; y: number; z: number }) {
+    if (!assetId) {
+      throw new Error('Asset ID is required for insert_asset');
+    }
+    const response = await this.client.request('/api/insert-asset', {
+      assetId,
+      parentPath: parentPath || 'game.Workspace',
+      position
+    });
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(response)
+      }]
+    };
+  }
+
+  async previewAsset(assetId: number, includeProperties?: boolean, maxDepth?: number) {
+    if (!assetId) {
+      throw new Error('Asset ID is required for preview_asset');
+    }
+    const response = await this.client.request('/api/preview-asset', {
+      assetId,
+      includeProperties: includeProperties ?? true,
+      maxDepth: maxDepth ?? 10
+    });
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(response)
+      }]
     };
   }
 }

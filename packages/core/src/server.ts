@@ -200,6 +200,17 @@ export class RobloxStudioMCPServer {
           case 'redo':
             return await this.tools.redo();
 
+          case 'search_assets':
+            return await this.tools.searchAssets((args as any)?.assetType as string, (args as any)?.query, (args as any)?.maxResults, (args as any)?.sortBy, (args as any)?.verifiedCreatorsOnly);
+          case 'get_asset_details':
+            return await this.tools.getAssetDetails((args as any)?.assetId as number);
+          case 'get_asset_thumbnail':
+            return await this.tools.getAssetThumbnail((args as any)?.assetId as number, (args as any)?.size);
+          case 'insert_asset':
+            return await this.tools.insertAsset((args as any)?.assetId as number, (args as any)?.parentPath, (args as any)?.position);
+          case 'preview_asset':
+            return await this.tools.previewAsset((args as any)?.assetId as number, (args as any)?.includeProperties, (args as any)?.maxDepth);
+
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
