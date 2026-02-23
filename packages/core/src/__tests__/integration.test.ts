@@ -1,7 +1,7 @@
 import request from 'supertest';
-import { createHttpServer } from '../http-server';
-import { RobloxStudioTools } from '../tools/index';
-import { BridgeService } from '../bridge-service';
+import { createHttpServer } from '../http-server.js';
+import { RobloxStudioTools } from '../tools/index.js';
+import { BridgeService } from '../bridge-service.js';
 import { Application } from 'express';
 
 describe('Integration Tests', () => {

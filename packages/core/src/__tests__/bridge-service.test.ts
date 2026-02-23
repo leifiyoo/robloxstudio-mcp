@@ -1,4 +1,4 @@
-import { BridgeService } from '../bridge-service';
+import { BridgeService } from '../bridge-service.js';
 
 describe('BridgeService', () => {
   let bridgeService: BridgeService;

@@ -1,9 +1,10 @@
 import Utils from "../Utils";
+import Recording from "../Recording";
 
-const ChangeHistoryService = game.GetService("ChangeHistoryService");
 const ScriptEditorService = game.GetService("ScriptEditorService");
 
 const { getInstancePath, getInstanceByPath, readScriptSource, splitLines, joinLines } = Utils;
+const { beginRecording, finishRecording } = Recording;
 
 function normalizeEscapes(s: string): string {
 	let result = s;
@@ -116,12 +117,12 @@ function setScriptSource(requestData: Record<string, unknown>) {
 	}
 
 	const sourceToSet = normalizeEscapes(newSource);
+	const recordingId = beginRecording(`Set script source: ${instance.Name}`);
 
 	const [updateSuccess, updateResult] = pcall(() => {
 		const oldSourceLength = readScriptSource(instance).size();
 
 		ScriptEditorService.UpdateSourceAsync(instance, () => sourceToSet);
-		ChangeHistoryService.SetWaypoint(`Set script source: ${instance.Name}`);
 
 		return {
 			success: true, instancePath,
@@ -131,12 +132,14 @@ function setScriptSource(requestData: Record<string, unknown>) {
 		};
 	});
 
-	if (updateSuccess) return updateResult;
+	if (updateSuccess) {
+		finishRecording(recordingId, true);
+		return updateResult;
+	}
 
 	const [directSuccess, directResult] = pcall(() => {
 		const oldSource = (instance as unknown as { Source: string }).Source;
 		(instance as unknown as { Source: string }).Source = sourceToSet;
-		ChangeHistoryService.SetWaypoint(`Set script source: ${instance.Name}`);
 
 		return {
 			success: true, instancePath,
@@ -146,7 +149,10 @@ function setScriptSource(requestData: Record<string, unknown>) {
 		};
 	});
 
-	if (directSuccess) return directResult;
+	if (directSuccess) {
+		finishRecording(recordingId, true);
+		return directResult;
+	}
 
 	const [replaceSuccess, replaceResult] = pcall(() => {
 		const parent = instance.Parent;
@@ -164,7 +170,6 @@ function setScriptSource(requestData: Record<string, unknown>) {
 
 		newScript.Parent = parent;
 		instance.Destroy();
-		ChangeHistoryService.SetWaypoint(`Replace script: ${name}`);
 
 		return {
 			success: true,
@@ -174,7 +179,12 @@ function setScriptSource(requestData: Record<string, unknown>) {
 		};
 	});
 
-	if (replaceSuccess) return replaceResult;
+	if (replaceSuccess) {
+		finishRecording(recordingId, true);
+		return replaceResult;
+	}
+
+	finishRecording(recordingId, false);
 	return {
 		error: `Failed to set script source. UpdateSourceAsync failed: ${updateResult}. Direct assignment failed: ${directResult}. Replace method failed: ${replaceResult}`,
 	};
@@ -198,6 +208,8 @@ function editScriptLines(requestData: Record<string, unknown>) {
 		return { error: `Instance is not a script-like object: ${instance.ClassName}` };
 	}
 
+	const recordingId = beginRecording(`Edit script lines ${startLine}-${endLine}: ${instance.Name}`);
+
 	const [success, result] = pcall(() => {
 		const [lines, hadTrailingNewline] = splitLines(readScriptSource(instance));
 		const totalLines = lines.size();
@@ -214,7 +226,6 @@ function editScriptLines(requestData: Record<string, unknown>) {
 
 		const newSource = joinLines(resultLines, hadTrailingNewline);
 		ScriptEditorService.UpdateSourceAsync(instance, () => newSource);
-		ChangeHistoryService.SetWaypoint(`Edit script lines ${startLine}-${endLine}: ${instance.Name}`);
 
 		return {
 			success: true, instancePath,
@@ -226,7 +237,11 @@ function editScriptLines(requestData: Record<string, unknown>) {
 		};
 	});
 
-	if (success) return result;
+	if (success) {
+		finishRecording(recordingId, true);
+		return result;
+	}
+	finishRecording(recordingId, false);
 	return { error: `Failed to edit script lines: ${result}` };
 }
 
@@ -245,6 +260,8 @@ function insertScriptLines(requestData: Record<string, unknown>) {
 		return { error: `Instance is not a script-like object: ${instance.ClassName}` };
 	}
 
+	const recordingId = beginRecording(`Insert script lines after line ${afterLine}: ${instance.Name}`);
+
 	const [success, result] = pcall(() => {
 		const [lines, hadTrailingNewline] = splitLines(readScriptSource(instance));
 		const totalLines = lines.size();
@@ -260,7 +277,6 @@ function insertScriptLines(requestData: Record<string, unknown>) {
 
 		const newSource = joinLines(resultLines, hadTrailingNewline);
 		ScriptEditorService.UpdateSourceAsync(instance, () => newSource);
-		ChangeHistoryService.SetWaypoint(`Insert script lines after line ${afterLine}: ${instance.Name}`);
 
 		return {
 			success: true, instancePath,
@@ -271,7 +287,11 @@ function insertScriptLines(requestData: Record<string, unknown>) {
 		};
 	});
 
-	if (success) return result;
+	if (success) {
+		finishRecording(recordingId, true);
+		return result;
+	}
+	finishRecording(recordingId, false);
 	return { error: `Failed to insert script lines: ${result}` };
 }
 
@@ -290,6 +310,8 @@ function deleteScriptLines(requestData: Record<string, unknown>) {
 		return { error: `Instance is not a script-like object: ${instance.ClassName}` };
 	}
 
+	const recordingId = beginRecording(`Delete script lines ${startLine}-${endLine}: ${instance.Name}`);
+
 	const [success, result] = pcall(() => {
 		const [lines, hadTrailingNewline] = splitLines(readScriptSource(instance));
 		const totalLines = lines.size();
@@ -303,7 +325,6 @@ function deleteScriptLines(requestData: Record<string, unknown>) {
 
 		const newSource = joinLines(resultLines, hadTrailingNewline);
 		ScriptEditorService.UpdateSourceAsync(instance, () => newSource);
-		ChangeHistoryService.SetWaypoint(`Delete script lines ${startLine}-${endLine}: ${instance.Name}`);
 
 		return {
 			success: true, instancePath,
@@ -314,7 +335,11 @@ function deleteScriptLines(requestData: Record<string, unknown>) {
 		};
 	});
 
-	if (success) return result;
+	if (success) {
+		finishRecording(recordingId, true);
+		return result;
+	}
+	finishRecording(recordingId, false);
 	return { error: `Failed to delete script lines: ${result}` };
 }
 

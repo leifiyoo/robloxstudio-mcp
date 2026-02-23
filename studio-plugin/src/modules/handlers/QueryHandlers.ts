@@ -184,6 +184,7 @@ function searchObjects(requestData: Record<string, unknown>) {
 
 function getInstanceProperties(requestData: Record<string, unknown>) {
 	const instancePath = requestData.instancePath as string;
+	const excludeSource = (requestData.excludeSource as boolean) ?? false;
 	if (!instancePath) return { error: "Instance path is required" };
 
 	const instance = getInstanceByPath(instancePath);
@@ -228,7 +229,13 @@ function getInstanceProperties(requestData: Record<string, unknown>) {
 		}
 
 		if (instance.IsA("LuaSourceContainer")) {
-			properties.Source = readScriptSource(instance);
+			if (!excludeSource) {
+				properties.Source = readScriptSource(instance);
+			} else {
+				const src = readScriptSource(instance);
+				properties.SourceLength = src.size();
+				properties.LineCount = Utils.splitLines(src)[0].size();
+			}
 			if (instance.IsA("BaseScript")) {
 				properties.Enabled = tostring(instance.Enabled);
 			}
@@ -530,6 +537,141 @@ function getProjectStructure(requestData: Record<string, unknown>) {
 	return result;
 }
 
+function grepScripts(requestData: Record<string, unknown>) {
+	const pattern = requestData.pattern as string;
+	if (!pattern) return { error: "pattern is required" };
+
+	const caseSensitive = (requestData.caseSensitive as boolean) ?? false;
+	const contextLines = (requestData.contextLines as number) ?? 0;
+	const maxResults = (requestData.maxResults as number) ?? 100;
+	const maxResultsPerScript = (requestData.maxResultsPerScript as number) ?? 0;
+	const usePattern = (requestData.usePattern as boolean) ?? false;
+	const filesOnly = (requestData.filesOnly as boolean) ?? false;
+	const searchPath = (requestData.path as string) ?? "";
+	const classFilter = requestData.classFilter as string | undefined;
+
+	const startInstance = searchPath !== "" ? getInstanceByPath(searchPath) : game;
+	if (!startInstance) return { error: `Path not found: ${searchPath}` };
+
+	// Prepare pattern for matching
+	const searchPattern = caseSensitive ? pattern : pattern.lower();
+
+	interface LineMatch {
+		line: number;
+		column: number;
+		text: string;
+		before: string[];
+		after: string[];
+	}
+
+	interface ScriptResult {
+		instancePath: string;
+		name: string;
+		className: string;
+		matches: LineMatch[];
+	}
+
+	const results: ScriptResult[] = [];
+	let totalMatches = 0;
+	let scriptsSearched = 0;
+	let hitLimit = false;
+
+	function searchInstance(instance: Instance) {
+		if (hitLimit) return;
+
+		if (instance.IsA("LuaSourceContainer")) {
+			// Apply class filter
+			if (classFilter) {
+				if (!instance.ClassName.lower().find(classFilter.lower())[0]) return;
+			}
+
+			scriptsSearched++;
+			const source = readScriptSource(instance);
+			const [lines] = Utils.splitLines(source);
+			const scriptMatches: LineMatch[] = [];
+			let scriptMatchCount = 0;
+
+			for (let i = 0; i < lines.size(); i++) {
+				if (hitLimit) break;
+				if (maxResultsPerScript > 0 && scriptMatchCount >= maxResultsPerScript) break;
+
+				const line = lines[i];
+				const searchLine = caseSensitive ? line : line.lower();
+
+				let matchStart: number | undefined;
+				let matchEnd: number | undefined;
+
+				if (usePattern) {
+					[matchStart, matchEnd] = string.find(searchLine, searchPattern);
+				} else {
+					[matchStart, matchEnd] = string.find(searchLine, searchPattern, 1, true);
+				}
+
+				if (matchStart !== undefined) {
+					scriptMatchCount++;
+					totalMatches++;
+
+					if (totalMatches > maxResults) {
+						hitLimit = true;
+						break;
+					}
+
+					if (!filesOnly) {
+						// Gather context lines
+						const before: string[] = [];
+						const after: string[] = [];
+
+						if (contextLines > 0) {
+							const beforeStart = math.max(0, i - contextLines);
+							for (let j = beforeStart; j < i; j++) {
+								before.push(lines[j]);
+							}
+							const afterEnd = math.min(lines.size() - 1, i + contextLines);
+							for (let j = i + 1; j <= afterEnd; j++) {
+								after.push(lines[j]);
+							}
+						}
+
+						scriptMatches.push({
+							line: i + 1, // 1-indexed
+							column: matchStart,
+							text: line,
+							before,
+							after,
+						});
+					}
+				}
+			}
+
+			if (scriptMatchCount > 0) {
+				results.push({
+					instancePath: getInstancePath(instance),
+					name: instance.Name,
+					className: instance.ClassName,
+					matches: scriptMatches,
+				});
+			}
+		}
+
+		for (const child of instance.GetChildren()) {
+			if (hitLimit) return;
+			searchInstance(child);
+		}
+	}
+
+	searchInstance(startInstance);
+
+	return {
+		results,
+		pattern,
+		totalMatches: hitLimit ? `>${maxResults}` : totalMatches,
+		scriptsSearched,
+		scriptsMatched: results.size(),
+		truncated: hitLimit,
+		options: { caseSensitive, contextLines, usePattern, filesOnly, maxResults, maxResultsPerScript },
+	};
+}
+
 export = {
 	getFileTree,
 	searchFiles,
@@ -541,4 +683,5 @@ export = {
 	searchByProperty,
 	getClassInfo,
 	getProjectStructure,
+	grepScripts,
 };

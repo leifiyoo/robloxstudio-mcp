@@ -8,6 +8,8 @@ import InstanceHandlers from "./handlers/InstanceHandlers";
 import ScriptHandlers from "./handlers/ScriptHandlers";
 import MetadataHandlers from "./handlers/MetadataHandlers";
 import TestHandlers from "./handlers/TestHandlers";
+import BuildHandlers from "./handlers/BuildHandlers";
+import AssetHandlers from "./handlers/AssetHandlers";
 import { Connection, RequestPayload, PollResponse } from "../types";
 
 type Handler = (data: Record<string, unknown>) => unknown;
@@ -24,6 +26,7 @@ const routeMap: Record<string, Handler> = {
 	"/api/search-by-property": QueryHandlers.searchByProperty,
 	"/api/class-info": QueryHandlers.getClassInfo,
 	"/api/project-structure": QueryHandlers.getProjectStructure,
+	"/api/grep-scripts": QueryHandlers.grepScripts,
 
 	"/api/set-property": PropertyHandlers.setProperty,
 	"/api/mass-set-property": PropertyHandlers.massSetProperty,
@@ -54,10 +57,20 @@ const routeMap: Record<string, Handler> = {
 	"/api/get-tagged": MetadataHandlers.getTagged,
 	"/api/get-selection": MetadataHandlers.getSelection,
 	"/api/execute-luau": MetadataHandlers.executeLuau,
+	"/api/undo": MetadataHandlers.undo,
+	"/api/redo": MetadataHandlers.redo,
 
 	"/api/start-playtest": TestHandlers.startPlaytest,
 	"/api/stop-playtest": TestHandlers.stopPlaytest,
 	"/api/get-playtest-output": TestHandlers.getPlaytestOutput,
+
+	"/api/export-build": BuildHandlers.exportBuild,
+	"/api/import-build": BuildHandlers.importBuild,
+	"/api/import-scene": BuildHandlers.importScene,
+	"/api/search-materials": BuildHandlers.searchMaterials,
+
+	"/api/insert-asset": AssetHandlers.insertAsset,
+	"/api/preview-asset": AssetHandlers.previewAsset,
 };
 
 function processRequest(request: RequestPayload): unknown {
