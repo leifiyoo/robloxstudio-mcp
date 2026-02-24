@@ -992,7 +992,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: 'Array of part arrays. Each: [posX, posY, posZ, sizeX, sizeY, sizeZ, rotX, rotY, rotZ, paletteKey, shape?, transparency?]. Shapes: Block (default), Wedge, Cylinder, Ball, CornerWedge.',
           items: {
             type: 'array',
-            minItems: 10
+            minItems: 10,
+            items: {
+              anyOf: [{ type: 'number' }, { type: 'string' }]
+            }
           }
         },
         bounds: {
@@ -1169,7 +1172,10 @@ part(0,2,0,2,1,1,"b")`,
             place: {
               type: 'array',
               description: 'Array of placements: [modelKey, [x,y,z], [rotX?,rotY?,rotZ?]]',
-              items: { type: 'array' }
+              items: {
+                type: 'array',
+                items: {}
+              }
             },
             custom: {
               type: 'array',
