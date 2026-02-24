@@ -1,10 +1,3 @@
-This fork patches strict JSON schema compatibility issues in `robloxstudio-mcp` v2.4.x that can break MCP clients (Copilot/OpenCode/Codex) with errors like:
-`Invalid schema for function 'robloxstudio_create_build': In context=('properties', 'parts', 'items'), array schema missing items.`
-Fixed in this fork:
-- `create_build.parts` nested array schema
-- `import_scene.place` nested array schema hardening
-Upstream PR: https://github.com/boshyxd/robloxstudio-mcp/pull/56
-
 # Roblox Studio MCP Server
 
 **Connect AI assistants like Claude and Gemini to Roblox Studio**
