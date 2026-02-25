@@ -60,6 +60,87 @@ Plugin shows "Connected" when ready.
 ```
 </details>
 
+## Running from Source (Private Setup)
+
+If you want to run your own private copy instead of the published npm package:
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18 or later
+- [Git](https://git-scm.com/)
+- Roblox Studio with the plugin installed (see step 1 above)
+
+### 1. Clone and build
+
+```bash
+git clone https://github.com/leifiyoo/robloxstudio-mcp.git
+cd robloxstudio-mcp
+npm install
+npm run build
+```
+
+### 2. Test that it runs
+
+```bash
+npm start
+```
+
+You should see output like `HTTP server listening on 0.0.0.0:58741` — press Ctrl+C to stop.
+
+### 3. Connect your AI client
+
+Point your AI client at the locally-built server instead of the npm package:
+
+**Claude Code:**
+```bash
+claude mcp add robloxstudio -- node /absolute/path/to/robloxstudio-mcp/packages/robloxstudio-mcp/dist/index.js
+```
+
+**Codex CLI:**
+```bash
+codex mcp add robloxstudio -- node /absolute/path/to/robloxstudio-mcp/packages/robloxstudio-mcp/dist/index.js
+```
+
+**Claude Desktop / Cursor / other JSON-config clients:**
+```json
+{
+  "mcpServers": {
+    "robloxstudio-mcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/robloxstudio-mcp/packages/robloxstudio-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+> **Tip:** Replace `/absolute/path/to/robloxstudio-mcp` with the actual path where you cloned the repo.
+>
+> **Windows example:** `"args": ["C:\\Users\\you\\robloxstudio-mcp\\packages\\robloxstudio-mcp\\dist\\index.js"]`
+
+### 4. Development mode (auto-rebuild)
+
+For active development, use the dev script which rebuilds on changes:
+
+```bash
+npm run dev
+```
+
+### Optional: Build the Studio plugin from source
+
+The repository includes a pre-built `studio-plugin/MCPPlugin.rbxmx`. To rebuild it from the TypeScript source:
+
+```bash
+cd studio-plugin
+npm install
+npm run build
+cd ..
+npm run build:plugin
+```
+
+Then copy `studio-plugin/MCPPlugin.rbxmx` to your Roblox Studio Plugins folder.
+
+---
+
 ## What Can You Do?
 
 Ask things like: *"What's the structure of this game?"*, *"Find scripts with deprecated APIs"*, *"Create 50 test NPCs in a grid"*, *"Optimize this movement code"*
