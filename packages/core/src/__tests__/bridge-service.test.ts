@@ -155,8 +155,8 @@ describe('BridgeService', () => {
       // Should not be returned immediately
       expect(bridgeService.getPendingRequest()).toBeNull();
 
-      // Advance past the redispatch timeout (3s)
-      jest.advanceTimersByTime(4000);
+      // Advance past the redispatch timeout (10s)
+      jest.advanceTimersByTime(11000);
 
       // Should be re-dispatched now
       const rePoll = bridgeService.getPendingRequest();

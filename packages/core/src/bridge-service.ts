@@ -14,7 +14,7 @@ export class BridgeService {
   private pendingRequests: Map<string, PendingRequest> = new Map();
   private dispatchedRequests: Map<string, number> = new Map();
   private requestTimeout = 25000;
-  private redispatchTimeout = 3000;
+  private redispatchTimeout = 10000;
 
   async sendRequest(endpoint: string, data: any): Promise<any> {
     const requestId = uuidv4();

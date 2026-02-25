@@ -14,6 +14,8 @@ import { Connection, RequestPayload, PollResponse } from "../types";
 
 type Handler = (data: Record<string, unknown>) => unknown;
 
+const processingRequests = new Set<string>();
+
 const routeMap: Record<string, Handler> = {
 
 	"/api/file-tree": QueryHandlers.getFileTree,
@@ -183,14 +185,19 @@ function pollForRequests(connIndex: number) {
 		}
 
 		if (data.request && mcpConnected) {
-			task.spawn(() => {
-				const [ok, response] = pcall(() => processRequest(data.request!));
-				if (ok) {
-					sendResponse(conn, data.requestId!, response);
-				} else {
-					sendResponse(conn, data.requestId!, { error: tostring(response) });
-				}
-			});
+			const reqId = data.requestId!;
+			if (!processingRequests.has(reqId)) {
+				processingRequests.add(reqId);
+				task.spawn(() => {
+					const [ok, response] = pcall(() => processRequest(data.request!));
+					if (ok) {
+						sendResponse(conn, reqId, response);
+					} else {
+						sendResponse(conn, reqId, { error: tostring(response) });
+					}
+					processingRequests.delete(reqId);
+				});
+			}
 		}
 	} else if (conn.isActive) {
 		conn.consecutiveFailures++;
@@ -340,6 +347,7 @@ function deactivatePlugin(connIndex?: number) {
 	if (!conn) return;
 
 	conn.isActive = false;
+	processingRequests.clear();
 
 	if (idx === State.getActiveTabIndex()) UI.updateUIState();
 	UI.updateTabDot(idx);

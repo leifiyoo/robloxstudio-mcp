@@ -129,6 +129,7 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
   app.post('/ready', (req, res) => {
     pluginConnected = true;
     lastPluginActivity = Date.now();
+    bridge.clearAllPendingRequests();
     res.json({ success: true });
   });
 
