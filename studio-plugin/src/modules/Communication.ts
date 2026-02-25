@@ -86,14 +86,22 @@ function processRequest(request: RequestPayload): unknown {
 }
 
 function sendResponse(conn: Connection, requestId: string, responseData: unknown) {
-	pcall(() => {
-		HttpService.RequestAsync({
-			Url: `${conn.serverUrl}/response`,
-			Method: "POST",
-			Headers: { "Content-Type": "application/json" },
-			Body: HttpService.JSONEncode({ requestId, response: responseData }),
+	const MAX_RETRIES = 3;
+	const RETRY_DELAY = 1;
+	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+		const [ok] = pcall(() => {
+			HttpService.RequestAsync({
+				Url: `${conn.serverUrl}/response`,
+				Method: "POST",
+				Headers: { "Content-Type": "application/json" },
+				Body: HttpService.JSONEncode({ requestId, response: responseData }),
+			});
 		});
-	});
+		if (ok) return;
+		if (attempt < MAX_RETRIES - 1) {
+			task.wait(RETRY_DELAY);
+		}
+	}
 }
 
 function getConnectionStatus(connIndex: number): string {

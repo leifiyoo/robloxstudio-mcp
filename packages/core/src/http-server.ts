@@ -102,11 +102,11 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
 
   const isMCPServerActive = () => {
     if (!mcpServerActive) return false;
-    return (Date.now() - lastMCPActivity) < 30000;
+    return (Date.now() - lastMCPActivity) < 60000;
   };
 
   const isPluginConnected = () => {
-    return pluginConnected && (Date.now() - lastPluginActivity < 30000);
+    return pluginConnected && (Date.now() - lastPluginActivity < 60000);
   };
 
   app.use(cors());

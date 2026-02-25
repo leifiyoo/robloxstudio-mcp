@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 export class ProxyBridgeService extends BridgeService {
   private primaryBaseUrl: string;
   readonly proxyInstanceId: string;
-  private proxyRequestTimeout = 30000;
+  private proxyRequestTimeout = 60000;
 
   constructor(primaryBaseUrl: string) {
     super();

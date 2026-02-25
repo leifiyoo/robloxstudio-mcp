@@ -52,13 +52,13 @@ describe('BridgeService', () => {
       await expect(requestPromise).rejects.toEqual(error);
     });
 
-    test('should timeout request after 30 seconds', async () => {
+    test('should timeout request after 60 seconds', async () => {
       const endpoint = '/api/test';
       const data = { test: 'data' };
 
       const requestPromise = bridgeService.sendRequest(endpoint, data);
 
-      jest.advanceTimersByTime(31000);
+      jest.advanceTimersByTime(61000);
 
       await expect(requestPromise).rejects.toThrow('Request timeout');
     });
@@ -73,7 +73,7 @@ describe('BridgeService', () => {
         bridgeService.sendRequest('/api/test3', {})
       ];
 
-      jest.advanceTimersByTime(31000);
+      jest.advanceTimersByTime(61000);
 
       bridgeService.cleanupOldRequests();
 
@@ -131,6 +131,60 @@ describe('BridgeService', () => {
       bridgeService.resolveRequest(thirdRequest!.requestId, {});
 
       expect(bridgeService.getPendingRequest()).toBeNull();
+    });
+  });
+
+  describe('Dispatch Tracking', () => {
+    test('should not return already dispatched request on subsequent polls', async () => {
+      bridgeService.sendRequest('/api/test', { data: 'test' });
+
+      const firstPoll = bridgeService.getPendingRequest();
+      expect(firstPoll).toBeTruthy();
+      expect(firstPoll?.request.endpoint).toBe('/api/test');
+
+      const secondPoll = bridgeService.getPendingRequest();
+      expect(secondPoll).toBeNull();
+    });
+
+    test('should return dispatched request again after resolve', async () => {
+      const promise = bridgeService.sendRequest('/api/test', {});
+
+      const firstPoll = bridgeService.getPendingRequest();
+      expect(firstPoll).toBeTruthy();
+
+      bridgeService.resolveRequest(firstPoll!.requestId, { ok: true });
+      await promise;
+
+      expect(bridgeService.getPendingRequest()).toBeNull();
+    });
+
+    test('should clear dispatch tracking on clearAllPendingRequests', async () => {
+      const p1 = bridgeService.sendRequest('/api/test1', {});
+      p1.catch(() => {});
+
+      const firstPoll = bridgeService.getPendingRequest();
+      expect(firstPoll).toBeTruthy();
+
+      expect(bridgeService.getPendingRequest()).toBeNull();
+
+      bridgeService.clearAllPendingRequests();
+
+      expect(bridgeService.getPendingRequest()).toBeNull();
+    });
+
+    test('should dispatch multiple requests independently', async () => {
+      bridgeService.sendRequest('/api/test1', { order: 1 });
+      jest.advanceTimersByTime(10);
+      bridgeService.sendRequest('/api/test2', { order: 2 });
+
+      const first = bridgeService.getPendingRequest();
+      expect(first?.request.data.order).toBe(1);
+
+      const second = bridgeService.getPendingRequest();
+      expect(second?.request.data.order).toBe(2);
+
+      const third = bridgeService.getPendingRequest();
+      expect(third).toBeNull();
     });
   });
 });
