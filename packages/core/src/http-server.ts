@@ -189,6 +189,8 @@ export function createHttpServer(tools: RobloxStudioTools, bridge: BridgeService
   app.post('/response', (req, res) => {
     const { requestId, response, error } = req.body;
 
+    trackMCPActivity();
+
     if (error) {
       bridge.rejectRequest(requestId, error);
     } else {

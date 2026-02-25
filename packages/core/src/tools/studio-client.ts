@@ -2,8 +2,8 @@ import { BridgeService } from '../bridge-service.js';
 
 export class StudioHttpClient {
   private bridge: BridgeService;
-  private maxRetries = 3;
-  private retryDelayMs = 2000;
+  private maxRetries = 2;
+  private retryDelayMs = 1000;
 
   constructor(bridge: BridgeService) {
     this.bridge = bridge;
