@@ -86,18 +86,18 @@ function processRequest(request: RequestPayload): unknown {
 }
 
 function sendResponse(conn: Connection, requestId: string, responseData: unknown) {
-	const MAX_RETRIES = 3;
-	const RETRY_DELAY = 1;
+	const MAX_RETRIES = 5;
+	const RETRY_DELAY = 0.5;
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-		const [ok] = pcall(() => {
-			HttpService.RequestAsync({
+		const [ok, result] = pcall(() => {
+			return HttpService.RequestAsync({
 				Url: `${conn.serverUrl}/response`,
 				Method: "POST",
 				Headers: { "Content-Type": "application/json" },
 				Body: HttpService.JSONEncode({ requestId, response: responseData }),
 			});
 		});
-		if (ok) return;
+		if (ok && result.Success) return;
 		if (attempt < MAX_RETRIES - 1) {
 			task.wait(RETRY_DELAY);
 		}
