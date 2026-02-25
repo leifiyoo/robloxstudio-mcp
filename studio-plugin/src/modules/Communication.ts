@@ -310,8 +310,39 @@ function activatePlugin(connIndex?: number) {
 	UI.updateTabDot(idx);
 
 	if (!conn.heartbeatConnection) {
+		let wasRunning = RunService.IsRunning();
 		conn.heartbeatConnection = RunService.Heartbeat.Connect(() => {
 			const now = tick();
+
+			// Detect play mode transitions (start or stop) and reset stale state
+			const isRunning = RunService.IsRunning();
+			if (isRunning !== wasRunning) {
+				wasRunning = isRunning;
+				conn.isPolling = false;
+				conn.consecutiveFailures = 0;
+				conn.currentRetryDelay = 0.5;
+				processingRequests.clear();
+				// Re-register with the server once the transition has settled
+				task.spawn(() => {
+					task.wait(2);
+					if (!conn.isActive) return;
+					pcall(() => {
+						HttpService.RequestAsync({
+							Url: `${conn.serverUrl}/ready`,
+							Method: "POST",
+							Headers: { "Content-Type": "application/json" },
+							Body: HttpService.JSONEncode({ pluginReady: true, timestamp: tick() }),
+						});
+					});
+				});
+			}
+
+			// Watchdog: if a poll has been stuck for more than 10 seconds, unstick it
+			if (conn.isPolling && (now - conn.lastPoll) > 10) {
+				conn.isPolling = false;
+				processingRequests.clear();
+			}
+
 			const currentInterval = conn.consecutiveFailures > 5 ? conn.currentRetryDelay : conn.pollInterval;
 			if (now - conn.lastPoll > currentInterval) {
 				conn.lastPoll = now;
