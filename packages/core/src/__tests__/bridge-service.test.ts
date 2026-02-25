@@ -146,6 +146,25 @@ describe('BridgeService', () => {
       expect(secondPoll).toBeNull();
     });
 
+    test('should re-dispatch request after redispatch timeout', async () => {
+      bridgeService.sendRequest('/api/test', { data: 'test' });
+
+      const firstPoll = bridgeService.getPendingRequest();
+      expect(firstPoll).toBeTruthy();
+
+      // Should not be returned immediately
+      expect(bridgeService.getPendingRequest()).toBeNull();
+
+      // Advance past the redispatch timeout (15s)
+      jest.advanceTimersByTime(16000);
+
+      // Should be re-dispatched now
+      const rePoll = bridgeService.getPendingRequest();
+      expect(rePoll).toBeTruthy();
+      expect(rePoll?.request.endpoint).toBe('/api/test');
+      expect(rePoll?.requestId).toBe(firstPoll?.requestId);
+    });
+
     test('should return dispatched request again after resolve', async () => {
       const promise = bridgeService.sendRequest('/api/test', {});
 
