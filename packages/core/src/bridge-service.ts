@@ -12,7 +12,9 @@ interface PendingRequest {
 
 export class BridgeService {
   private pendingRequests: Map<string, PendingRequest> = new Map();
-  private requestTimeout = 30000;
+  private dispatchedRequests: Map<string, number> = new Map();
+  private requestTimeout = 60000;
+  private redispatchTimeout = 15000;
 
   async sendRequest(endpoint: string, data: any): Promise<any> {
     const requestId = uuidv4();
@@ -22,6 +24,7 @@ export class BridgeService {
       const timeoutId = setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
+          this.dispatchedRequests.delete(requestId);
           reject(new Error('Request timeout'));
         }
       }, this.requestTimeout);
@@ -42,15 +45,19 @@ export class BridgeService {
 
   getPendingRequest(): { requestId: string; request: { endpoint: string; data: any } } | null {
 
+    const now = Date.now();
     let oldestRequest: PendingRequest | null = null;
 
     for (const request of this.pendingRequests.values()) {
+      const dispatchedAt = this.dispatchedRequests.get(request.id);
+      if (dispatchedAt !== undefined && (now - dispatchedAt) < this.redispatchTimeout) continue;
       if (!oldestRequest || request.timestamp < oldestRequest.timestamp) {
         oldestRequest = request;
       }
     }
 
     if (oldestRequest) {
+      this.dispatchedRequests.set(oldestRequest.id, now);
       return {
         requestId: oldestRequest.id,
         request: {
@@ -68,6 +75,7 @@ export class BridgeService {
     if (request) {
       clearTimeout(request.timeoutId);
       this.pendingRequests.delete(requestId);
+      this.dispatchedRequests.delete(requestId);
       request.resolve(response);
     }
   }
@@ -77,6 +85,7 @@ export class BridgeService {
     if (request) {
       clearTimeout(request.timeoutId);
       this.pendingRequests.delete(requestId);
+      this.dispatchedRequests.delete(requestId);
       request.reject(error);
     }
   }
@@ -87,6 +96,7 @@ export class BridgeService {
       if (now - request.timestamp > this.requestTimeout) {
         clearTimeout(request.timeoutId);
         this.pendingRequests.delete(id);
+        this.dispatchedRequests.delete(id);
         request.reject(new Error('Request timeout'));
       }
     }
@@ -98,5 +108,6 @@ export class BridgeService {
       request.reject(new Error('Connection closed'));
     }
     this.pendingRequests.clear();
+    this.dispatchedRequests.clear();
   }
 }

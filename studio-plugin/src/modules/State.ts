@@ -13,7 +13,7 @@ function createConnection(port: number): Connection {
 		pollInterval: 0.5,
 		lastPoll: 0,
 		consecutiveFailures: 0,
-		maxFailuresBeforeError: 50,
+		maxFailuresBeforeError: 100,
 		lastSuccessfulConnection: 0,
 		currentRetryDelay: 0.5,
 		maxRetryDelay: 5,
